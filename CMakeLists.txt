@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(SimpleECS VERSION 1.0.4 LANGUAGES CXX)
+project(SimpleECS VERSION 1.0.5 LANGUAGES CXX)
 
 option(ECS_FINAL "Final build without any debug info" OFF)
-option(ECS_ENABLE_IMGUI "Enable all ImGui related code" OFF)
+option(ECS_ENABLE_IMGUI "Enable ImGui related code" OFF)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -42,33 +42,19 @@ set(SOURCE_FILES
     ${CPP_FILES}
 )
 
-add_library(${PROJECT_NAME}
-    STATIC
-        ${SOURCE_FILES}
-)
+add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES})
+add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
+target_compile_definitions(${PROJECT_NAME} PUBLIC CRCPP_USE_CPP11)
+target_link_libraries(${PROJECT_NAME} PUBLIC spdlog)
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(ECS_FINAL)
     set_target_properties(${PROJECT_NAME} PROPERTIES UNITY_BUILD ON)
     target_compile_definitions(${PROJECT_NAME} PUBLIC ECS_FINAL)
     set(ECS_ENABLE_IMGUI OFF)
 endif()
-
-target_compile_definitions(${PROJECT_NAME}
-    PUBLIC
-        CRCPP_USE_CPP11
-)
-
-target_link_libraries(${PROJECT_NAME}
-    PUBLIC
-        spdlog
-)
-
-target_include_directories(${PROJECT_NAME}
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
-)
 
 set_target_properties(${PROJECT_NAME}
     PROPERTIES
