@@ -1,0 +1,13 @@
+build
+.cache
+imgui.ini
+.PVS-studio
+.vs
+save
+logs/d
+savegame.dat
+
+*egg-info
+*pyd
+__pycache__
+mapped/*

@@ -1,0 +1,87 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(SimpleECS VERSION 1.0.4 LANGUAGES CXX)
+
+option(ECS_FINAL "Final build without any debug info" OFF)
+option(ECS_ENABLE_IMGUI "Enable all ImGui related code" OFF)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(H_FILES
+    simple-ecs/base_system.h
+    simple-ecs/components.h
+    simple-ecs/tools/crc_ct.h
+    simple-ecs/entity.h
+    simple-ecs/entity_iterator.h
+    simple-ecs/entity_debug.cpp
+    simple-ecs/entity_debug.h
+    simple-ecs/filter.h
+    simple-ecs/observer.h
+    simple-ecs/tools/random.h
+    simple-ecs/registrant.h
+    simple-ecs/registry.h
+    simple-ecs/serializer.cpp
+    simple-ecs/serializer.h
+    simple-ecs/tools/sparse_set.h
+    simple-ecs/storage.h
+    simple-ecs/tools/void_callback.h
+    simple-ecs/utils.h
+    simple-ecs/world.cpp
+    simple-ecs/world.h
+)
+
+set(CPP_FILES
+    simple-ecs/entity_debug.cpp
+    simple-ecs/serializer.cpp
+    simple-ecs/world.cpp
+)
+
+set(SOURCE_FILES
+    ${H_FILES}
+    ${CPP_FILES}
+)
+
+add_library(${PROJECT_NAME}
+    STATIC
+        ${SOURCE_FILES}
+)
+
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
+
+if(ECS_FINAL)
+    set_target_properties(${PROJECT_NAME} PROPERTIES UNITY_BUILD ON)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC ECS_FINAL)
+    set(ECS_ENABLE_IMGUI OFF)
+endif()
+
+target_compile_definitions(${PROJECT_NAME}
+    PUBLIC
+        CRCPP_USE_CPP11
+)
+
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+        spdlog
+)
+
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+set_target_properties(${PROJECT_NAME}
+    PROPERTIES
+        UNITY_BUILD_MODE BATCH
+        UNITY_BUILD_BATCH_SIZE 0
+)
+
+if(ECS_ENABLE_IMGUI)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC ECS_ENABLE_IMGUI)
+
+    target_link_libraries(${PROJECT_NAME}
+        PUBLIC
+            ImGui # EntityDebugSystem uses it
+            ImPlot # EntityDebugSystem uses it
+    )
+endif()

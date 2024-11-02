@@ -1,0 +1,5 @@
+* text=auto
+
+# Convert to LF line endings on checkout.
+CMakeLists.txt text eol=lf
+*.cmake.patch text eol=lf
