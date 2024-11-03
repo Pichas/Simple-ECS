@@ -162,6 +162,7 @@ struct World final : NoCopyNoMove {
     template<typename Component>
     ECS_FORCEINLINE void markUpdated(Entity e) {
         using Tag = Updated<Component>;
+        ECS_ASSERT(has<Component>(e), "Entity should have Component before you can marked it as Updated");
         emplace<Tag>(e);
     }
 

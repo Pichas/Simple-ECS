@@ -35,6 +35,7 @@ struct Observer final {
 
     template<typename Component>
     bool has(Entity e) const noexcept {
+        static_assert(TYPE_EXCLUDED<Component, Exclude>, "Component is in the Exclude list");
         return m_world.has<Component>(e);
     }
 
@@ -62,16 +63,20 @@ struct Observer final {
 
     template<typename Component>
     ECS_FORCEINLINE void markUpdated(Entity e) const {
+        static_assert(TYPE_REQUESTED<Component, Require>, "Component is not in the Require list");
+        static_assert(TYPE_EXCLUDED<Component, Exclude>, "Component is in the Exclude list");
         m_world.markUpdated<Component>(e);
     }
 
     template<typename Component>
     ECS_FORCEINLINE void clearUpdateTag(Entity e) const {
+        static_assert(TYPE_EXCLUDED<Component, Exclude>, "Component is in the Exclude list");
         m_world.clearUpdateTag<Component>(e);
     }
 
     template<typename Component>
     ECS_FORCEINLINE void clearUpdateTag(std::span<const Entity> ents) const {
+        static_assert(TYPE_EXCLUDED<Component, Exclude>, "Component is in the Exclude list");
         m_world.clearUpdateTag<Component>(ents);
     }
 
@@ -92,7 +97,7 @@ struct Observer final {
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) get(Entity e) const noexcept {
         static_assert(TYPE_REQUESTED<Component, Require>, "Component is not in the Require list");
         static_assert(TYPE_EXCLUDED<Component, Exclude>, "Component is in the Exclude list");
-        assert(m_world.isAlive(e));
+        ECS_ASSERT(m_world.isAlive(e), "Entity doesn't exist");
         return m_world.get<Component>(e);
     }
 
@@ -100,7 +105,7 @@ struct Observer final {
     requires(!std::is_empty_v<Component>)
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) tryGet(Entity e) const noexcept {
         static_assert(TYPE_EXCLUDED<Component, Exclude>, "Component is in the Exclude list");
-        assert(m_world.isAlive(e));
+        ECS_ASSERT(m_world.isAlive(e), "Entity doesn't exist");
         return m_world.tryGet<Component>(e);
     }
 
