@@ -57,7 +57,7 @@ struct EntityWrapper final {
     }
 
     template<typename Component>
-    bool has() const noexcept {
+    ECS_FORCEINLINE bool has() const noexcept {
         return m_observer.template has<Component>(*this);
     }
 
@@ -90,14 +90,12 @@ struct EntityWrapper final {
     template<typename Component>
     requires(!std::is_empty_v<Component>)
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) get() const noexcept {
-        assert(m_observer.isAlive(*this));
         return m_observer.template get<Component>(*this);
     }
 
     template<typename Component>
     requires(!std::is_empty_v<Component>)
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) tryGet() const noexcept {
-        assert(m_observer.isAlive(*this));
         return m_observer.template tryGet<Component>(*this);
     }
 

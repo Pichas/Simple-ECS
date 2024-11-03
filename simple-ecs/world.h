@@ -40,7 +40,6 @@ struct World final : NoCopyNoMove {
     decltype(auto) size() const noexcept { return m_entities.size(); }
 
     const std::vector<Entity>&              entities() const noexcept { return m_entities; }
-    void                                    destroy(Entity e) { m_entities_to_destroy.emplace_back(e); }
     const std::map<std::string, Component>& registeredComponentNames() const noexcept { return m_component_name; }
     bool isAlive(Entity e) const noexcept { return std::binary_search(m_entities.begin(), m_entities.end(), e); }
 
@@ -85,18 +84,23 @@ struct World final : NoCopyNoMove {
         static_assert(std::is_move_constructible_v<Component>, "Cannot add component which is not move constructible");
         static_assert(std::is_destructible_v<Component>, "Cannot add component which is not destructible");
 
-        // generate runtime ID for components.
-        std::ignore = detail::sequenceID<Component>();
-        std::ignore = detail::sequenceID<Tag>();
+        auto add_storage = [this]<typename T>() {
+            // generate runtime ID for components.
+            std::ignore = detail::sequenceID<T>();
+            ECS_ASSERT(m_storages.size() == detail::sequenceID<T>(), "Storage already exists");
+            m_storages.emplace_back().setType<T>();
+        };
 
-        m_storages.emplace_back().setType<Component>();
-        m_storages.emplace_back().setType<Tag>();
+        add_storage.template operator()<Component>();
+        add_storage.template operator()<Tag>();
+
         m_component_name.emplace(S_NAME<Component>, ID<Component>);
     }
 
     template<typename Component>
-    bool has(Entity e) noexcept {
+    ECS_FORCEINLINE bool has(Entity e) noexcept {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         return m_storages.at(detail::sequenceID<Component>()).has(e);
     }
 
@@ -104,6 +108,7 @@ struct World final : NoCopyNoMove {
     requires(!std::is_empty_v<Type>)
     ECS_FORCEINLINE void emplace(Entity e, Component&& c) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Type>(), "Storage doesn't exist");
+        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto& storage = m_storages.at(detail::sequenceID<Type>());
         storage.template emplace<Type>(e, std::forward<Component>(c));
         notify(e);
@@ -112,6 +117,7 @@ struct World final : NoCopyNoMove {
     template<typename Component, typename... Args>
     ECS_FORCEINLINE void emplace(Entity e, Args&&... args) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto& storage = m_storages.at(detail::sequenceID<Component>());
         storage.template emplace<Component>(e, std::forward<Args>(args)...);
         notify(e);
@@ -121,6 +127,7 @@ struct World final : NoCopyNoMove {
     requires(!std::is_empty_v<Type>)
     ECS_FORCEINLINE void forceEmplace(Entity e, Component&& c) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Type>(), "Storage doesn't exist");
+        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto& storage = m_storages.at(detail::sequenceID<Type>());
 
         auto* component = storage.template tryGet<Type>(e);
@@ -135,6 +142,7 @@ struct World final : NoCopyNoMove {
     template<typename Component, typename... Args>
     ECS_FORCEINLINE void forceEmplace(Entity e, Args&&... args) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto& storage = m_storages.at(detail::sequenceID<Component>());
 
         auto* component = storage.template tryGet<Component>(e);
@@ -181,6 +189,7 @@ struct World final : NoCopyNoMove {
     template<typename Component>
     ECS_FORCEINLINE void erase(Entity e) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto& storage = m_storages.at(detail::sequenceID<Component>());
         storage.template erase<Component>(e);
         notify(e);
@@ -189,6 +198,7 @@ struct World final : NoCopyNoMove {
     template<typename Component>
     ECS_FORCEINLINE void erase(std::span<const Entity> ents) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(std::ranges::all_of(ents, [this](const Entity& e) { return isAlive(e); }), "Entity doesn't exist");
         auto& storage = m_storages.at(detail::sequenceID<Component>());
         storage.template erase<Component>(ents);
         notify(ents);
@@ -198,6 +208,7 @@ struct World final : NoCopyNoMove {
     requires(!std::is_empty_v<Component>)
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) get(Entity e) noexcept {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto& storage = m_storages.at(detail::sequenceID<Component>());
         return storage.template get<Component>(e);
     }
@@ -206,6 +217,7 @@ struct World final : NoCopyNoMove {
     requires(!std::is_empty_v<Component>)
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) tryGet(Entity e) noexcept {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto& storage = m_storages.at(detail::sequenceID<Component>());
         return storage.template tryGet<Component>(e);
     }
@@ -237,6 +249,8 @@ struct World final : NoCopyNoMove {
         return entity;
     }
 
+    void destroy(Entity e) { m_entities_to_destroy.emplace_back(e); }
+
     void destroy(std::span<const Entity> entities) {
         for (auto entity : entities) {
             m_entities_to_destroy.emplace_back(entity);
@@ -245,6 +259,7 @@ struct World final : NoCopyNoMove {
 
     void flush() {
         for (auto entity : std::views::reverse(m_entities_to_destroy)) {
+            ECS_ASSERT(isAlive(entity), "Entity doesn't exist");
             for (auto& storage : m_storages) {
                 storage.remove(entity);
             }
@@ -264,6 +279,7 @@ struct World final : NoCopyNoMove {
     std::vector<std::string> componentsNames(Entity e) {
         ECS_RELEASE_ONLY(
           spdlog::warn("Don't use this method in release build. We don't have storage names in release build"));
+        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         std::vector<std::string> names;
         for (const auto& storage : m_storages) {
             if (storage.has(e)) {
@@ -291,11 +307,11 @@ struct World final : NoCopyNoMove {
     }
 
 private:
-    std::map<std::string, Component>         m_component_name;
+    std::unique_ptr<Registry>                m_reg;
     std::vector<Entity>                      m_entities;
     std::vector<Entity>                      m_entities_to_destroy;
-    std::list<Entity>                        m_free_entities;
     std::vector<Storage>                     m_storages;
-    std::unique_ptr<Registry>                m_reg;
     std::vector<std::function<void(Entity)>> m_notify_callback;
+    std::list<Entity>                        m_free_entities;
+    std::map<std::string, Component>         m_component_name;
 };

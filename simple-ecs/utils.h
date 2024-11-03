@@ -1,7 +1,7 @@
 #pragma once
 
+#include "simple-ecs/entity.h"
 #include "tools/crc_ct.h"
-#include "tools/sparse_set.h"
 
 #include <spdlog/spdlog.h>
 #include <algorithm>
@@ -153,6 +153,8 @@ inline const std::vector<T>& operator|(const std::vector<T>& lhs, const std::vec
     result.erase(it, result.end());
     return result;
 }
+
+const std::vector<Entity> EMPTY_ARRAY;
 
 template<typename T>
 inline const std::vector<T>& operator&(const std::vector<T>& lhs, const std::vector<T>& rhs) {

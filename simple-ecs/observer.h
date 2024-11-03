@@ -34,7 +34,7 @@ struct Observer final {
 
 
     template<typename Component>
-    bool has(Entity e) const noexcept {
+    ECS_FORCEINLINE bool has(Entity e) const noexcept {
         static_assert(TYPE_EXCLUDED<Component, Exclude>, "Component is in the Exclude list");
         return m_world.has<Component>(e);
     }
@@ -97,7 +97,6 @@ struct Observer final {
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) get(Entity e) const noexcept {
         static_assert(TYPE_REQUESTED<Component, Require>, "Component is not in the Require list");
         static_assert(TYPE_EXCLUDED<Component, Exclude>, "Component is in the Exclude list");
-        ECS_ASSERT(m_world.isAlive(e), "Entity doesn't exist");
         return m_world.get<Component>(e);
     }
 
@@ -105,7 +104,6 @@ struct Observer final {
     requires(!std::is_empty_v<Component>)
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) tryGet(Entity e) const noexcept {
         static_assert(TYPE_EXCLUDED<Component, Exclude>, "Component is in the Exclude list");
-        ECS_ASSERT(m_world.isAlive(e), "Entity doesn't exist");
         return m_world.tryGet<Component>(e);
     }
 

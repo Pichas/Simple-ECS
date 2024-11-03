@@ -2,6 +2,7 @@
 
 #include "simple-ecs/entity.h"
 #include "simple-ecs/tools/void_callback.h"
+#include "tools/sparse_set.h"
 
 #include <span>
 
