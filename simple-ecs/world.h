@@ -81,9 +81,6 @@ struct World final : NoCopyNoMove {
     void createStorage() {
         using Tag = Updated<Component>;
 
-        static_assert(std::is_move_constructible_v<Component>, "Cannot add component which is not move constructible");
-        static_assert(std::is_destructible_v<Component>, "Cannot add component which is not destructible");
-
         auto add_storage = [this]<typename T>() {
             // generate runtime ID for components.
             std::ignore = detail::sequenceID<T>();

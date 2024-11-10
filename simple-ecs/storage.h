@@ -27,6 +27,10 @@ struct Storage final : SparseSet {
 
     template<typename Component>
     void setType() {
+        static_assert(std::is_move_constructible_v<Component>, "Cannot add component which is not move constructible");
+        static_assert(std::is_destructible_v<Component>, "Cannot add component which is not destructible");
+        static_assert(not std::is_array_v<Component>, "Cannot add array");
+
         assert(m_components_memory.empty() && "storage already in use");
 
         ECS_DEBUG_ONLY(m_string_name = S_NAME<Component>);
@@ -64,8 +68,9 @@ struct Storage final : SparseSet {
         if (SparseSet::emplace(e)) {
             if constexpr (!std::is_empty_v<Component>) {
                 m_components_memory.resize(m_components_memory.size() + m_component_size);
-                std::byte* ptr = &m_components_memory[m_components_memory.size() - m_component_size];
-                new (ptr) std::decay_t<Component>(std::forward<Args>(args)...);
+                std::byte* ptr      = &m_components_memory[m_components_memory.size() - m_component_size];
+                Component* comp_ptr = std::launder(reinterpret_cast<Component*>(ptr));
+                std::construct_at(comp_ptr, std::decay_t<Component>(std::forward<Args>(args)...));
             }
 
             auto lower = std::lower_bound(m_ents.begin(), m_ents.end(), e);
@@ -76,7 +81,7 @@ struct Storage final : SparseSet {
                     (*function)(e);
                 } else {
                     auto* comp = reinterpret_cast<Component*>(&m_components_memory[m_sparse[e] * m_component_size]);
-                    (*function)(e, *comp);
+                    (*function)(e, *std::launder(comp));
                 }
             }
         }
@@ -118,7 +123,8 @@ struct Storage final : SparseSet {
         ECS_DEBUG_ONLY(assert(m_id == ID<Component>));
 
         assert(has(e) && "Cannot get a component which an entity does not have");
-        return *reinterpret_cast<Component*>(&m_components_memory[m_sparse[e] * m_component_size]);
+        auto* ptr = reinterpret_cast<Component*>(&m_components_memory[m_sparse[e] * m_component_size]);
+        return *std::launder(ptr);
     }
 
     template<typename Component>
@@ -127,7 +133,8 @@ struct Storage final : SparseSet {
         ECS_DEBUG_ONLY(assert(m_id == ID<Component>));
 
         if (has(e)) {
-            return reinterpret_cast<Component*>(&m_components_memory[m_sparse[e] * m_component_size]);
+            auto* ptr = reinterpret_cast<Component*>(&m_components_memory[m_sparse[e] * m_component_size]);
+            return std::launder(ptr);
         }
         return nullptr;
     }
@@ -142,13 +149,13 @@ private:
                 (*function)(e);
             } else {
                 auto* comp = reinterpret_cast<Component*>(&m_components_memory[m_sparse[e] * m_component_size]);
-                (*function)(e, *comp);
+                (*function)(e, *std::launder(comp));
             }
         }
 
         if constexpr (!std::is_empty_v<Component>) {
             auto* comp = reinterpret_cast<Component*>(&m_components_memory[m_sparse[e] * m_component_size]);
-            comp->~Component();
+            std::destroy_at(std::launder(comp));
 
             std::byte* last = &m_components_memory[m_components_memory.size() - m_component_size];
             std::memcpy(comp, last, m_component_size);
