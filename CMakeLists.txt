@@ -1,12 +1,13 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(SimpleECS VERSION 1.0.7 LANGUAGES CXX)
+project(SimpleECS VERSION 1.0.8 LANGUAGES CXX)
 
 option(ECS_FINAL "Final build without any debug info" OFF)
 option(ECS_ENABLE_IMGUI "Enable ImGui related code" OFF)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(H_FILES
     simple-ecs/base_system.h
@@ -41,6 +42,8 @@ set(SOURCE_FILES
     ${H_FILES}
     ${CPP_FILES}
 )
+
+add_subdirectory(external)
 
 add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
