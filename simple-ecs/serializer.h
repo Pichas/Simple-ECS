@@ -103,7 +103,7 @@ void Serializer::registerCustomLoader(Callback&& f) { // NOLINT
     m_load_functions.emplace(ID<Component>,
                              [&world = m_world, func = std::forward<Callback>(f)](Entity e, const std::uint8_t*& data) {
                                  Component&& comp = func(data);
-                                 world.emplace(e, comp);
+                                 world.emplace(e, std::move(comp));
                                  world.markUpdated<Component>(e);
                              });
 }
@@ -122,12 +122,11 @@ void Serializer::addSaveCallback() {
 template<typename Component>
 requires(std::is_empty_v<Component>)
 void Serializer::addLoadCallback() {
-    m_load_functions.emplace(ID<Component>, [&world = m_world](Entity e, std::uint8_t*& /*fs*/) {
+    m_load_functions.emplace(ID<Component>, [&world = m_world](Entity e, const std::uint8_t*& /*fs*/) {
         world.emplace<Component>(e);
         world.markUpdated<Component>(e);
     });
 }
-
 
 template<typename Component>
 requires(!std::is_empty_v<Component>)

@@ -126,13 +126,8 @@ struct World final : NoCopyNoMove {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Type>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto& storage = m_storages.at(detail::sequenceID<Type>());
-
-        auto* component = storage.template tryGet<Type>(e);
-        if (component) {
-            *component = c;
-        } else {
-            storage.template emplace<Type>(e, std::forward<Component>(c));
-        }
+        storage.template erase<Type>(e);
+        storage.template emplace<Type>(e, std::forward<Component>(c));
         notify(e);
     }
 
@@ -141,14 +136,8 @@ struct World final : NoCopyNoMove {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto& storage = m_storages.at(detail::sequenceID<Component>());
-
-        auto* component = storage.template tryGet<Component>(e);
-        if (component) {
-            std::destroy_at(component);
-            std::construct_at(component, std::forward<Args>(args)...);
-        } else {
-            storage.template emplace<Component>(e, std::forward<Args>(args)...);
-        }
+        storage.template erase<Component>(e);
+        storage.template emplace<Component>(e, std::forward<Args>(args)...);
         notify(e);
     }
 
