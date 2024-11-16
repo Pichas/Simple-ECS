@@ -6,7 +6,7 @@
 
 
 template<typename Filter>
-struct Observer final {
+struct Observer final : NoCopyNoMove {
     using Require = typename Filter::Require::Type;
     using Exclude = typename Filter::Exclude::Type;
 
@@ -16,7 +16,7 @@ struct Observer final {
         m_entities = filtered.entities.get() - excluded.entities.get();
     }
 
-    ~Observer() { ECS_DEBUG_ONLY(m_world.notify(m_entities)); }
+    ~Observer() noexcept { ECS_DEBUG_ONLY(m_world.notify(m_entities)); }
 
     Registry* getRegistry() const noexcept { return m_world.getRegistry(); }
 

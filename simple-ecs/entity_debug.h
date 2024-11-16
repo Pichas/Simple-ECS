@@ -108,7 +108,7 @@ struct EntityDebugSystem final : BaseSystem {
             }
 #endif
 
-            if (!state) {
+            if (!state) { //-V547
                 world.erase<Component>(e);
             }
         });
@@ -139,7 +139,7 @@ struct EntityDebugSystem final : BaseSystem {
             }
 #endif
 
-            if (!state) {
+            if (!state) { //-V547
                 world.erase<Component>(e);
             }
         });

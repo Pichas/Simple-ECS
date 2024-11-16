@@ -24,7 +24,7 @@ void EntityDebugSystem::setup(Registry& reg) {
           std::copy(comp.name.begin(), comp.name.end(), std::back_inserter(temp));
           return temp;
       })
-      .setLoadFunc([](std::uint8_t*& data) {
+      .setLoadFunc([](const std::uint8_t*& data) {
           auto        size = serializer::deserialize<std::string::size_type>(data);
           std::string temp(size, 0);
           std::memcpy(temp.data(), data, size);
@@ -170,8 +170,8 @@ void EntityDebugSystem::showEntityListUI() {
 }
 
 bool EntityDebugSystem::showEntityInfoUI(Entity e) {
-    bool show = true;
 #ifdef ECS_ENABLE_IMGUI
+    bool show = true;
 
     auto*       name   = m_world.tryGet<Name>(e);
     std::string header = (name ? name->name : "Entity") + " (" + std::to_string(e) + ")";
@@ -197,8 +197,10 @@ bool EntityDebugSystem::showEntityInfoUI(Entity e) {
         ImGui::End();
     }
 
-#endif
     return !show;
+#else
+    return false;
+#endif
 }
 
 void EntityDebugSystem::entityHistory() {

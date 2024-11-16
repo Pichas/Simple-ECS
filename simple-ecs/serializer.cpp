@@ -9,7 +9,7 @@ namespace detail::serializer
 
 bool checkSaveLoadCallbacks(
   const std::unordered_map<Component, std::function<void(Entity, std::vector<std::uint8_t>&)>>& save_functions,
-  const std::unordered_map<Component, std::function<void(Entity, std::uint8_t*&)>>&             load_functions) {
+  const std::unordered_map<Component, std::function<void(Entity, const std::uint8_t*&)>>&       load_functions) {
     if (save_functions.size() != load_functions.size()) {
         return false;
     }
@@ -45,7 +45,7 @@ std::vector<std::uint8_t> Serializer::save() {
 }
 
 
-void Serializer::load(std::vector<std::uint8_t> data) {
+void Serializer::load(std::span<const std::uint8_t> data) {
     assert(detail::serializer::checkSaveLoadCallbacks(m_save_functions, m_load_functions) &&
            "For each save function, you should have one load function");
 
@@ -55,11 +55,11 @@ void Serializer::load(std::vector<std::uint8_t> data) {
 
     spdlog::stopwatch sw;
 
-    auto* ptr = data.data();
+    const auto* ptr = data.data();
 
     Entity entity = 0;
     do {
-        auto comp_id = *reinterpret_cast<Component*>(ptr);
+        auto comp_id = *std::launder(reinterpret_cast<const Component*>(ptr));
         ptr += sizeof(IDType);
 
         if (ID<Entity> == comp_id) {

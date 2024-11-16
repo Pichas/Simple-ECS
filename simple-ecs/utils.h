@@ -15,7 +15,7 @@
 #define ECS_OFFSET_RIGHT 1
 #define ECS_FORCEINLINE __forceinline
 #elif _MSC_VER
-#define __PRETTY_FUNCTION__ __FUNCSIG__ // NOLINT
+#define __PRETTY_FUNCTION__ __FUNCSIG__ // NOLINT //-V2573
 #define ECS_OFFSET_LEFT 79
 #define ECS_OFFSET_RIGHT 7
 #define ECS_FORCEINLINE __forceinline
@@ -110,7 +110,7 @@ consteval std::string_view svName() {
 }
 
 template<typename T>
-constinit std::string_view SV_NAME = svName<T>(); // NOLINT
+inline constinit std::string_view SV_NAME = svName<T>(); // NOLINT
 
 template<typename T>
 constexpr std::string sName() {
@@ -154,7 +154,7 @@ inline const std::vector<T>& operator|(const std::vector<T>& lhs, const std::vec
     return result;
 }
 
-const std::vector<Entity> EMPTY_ARRAY;
+inline const std::vector<Entity> EMPTY_ARRAY;
 
 template<typename T>
 inline const std::vector<T>& operator&(const std::vector<T>& lhs, const std::vector<T>& rhs) {

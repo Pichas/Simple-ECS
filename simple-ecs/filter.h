@@ -67,7 +67,7 @@ struct FilteredEntities<AND<Components<Component...>>> {
         std::ranges::sort(ents_by_comps, std::less<>{}, [](const EntitiesWrapper& v) { return v.get().size(); });
 
         entities = ents_by_comps.begin()->get();
-        for (auto it = std::next(ents_by_comps.begin()); it != ents_by_comps.end(); it++) {
+        for (auto it = std::next(ents_by_comps.begin()); it != ents_by_comps.end(); ++it) {
             entities = entities.get() & it->get();
         }
     }
@@ -90,7 +90,7 @@ struct FilteredEntities<OR<Components<Component...>>> {
         std::ranges::sort(ents_by_comps, std::less<>{}, [](const EntitiesWrapper& v) { return v.get().size(); });
 
         entities = ents_by_comps.begin()->get();
-        for (auto it = std::next(ents_by_comps.begin()); it != ents_by_comps.end(); it++) {
+        for (auto it = std::next(ents_by_comps.begin()); it != ents_by_comps.end(); ++it) {
             entities = entities.get() | it->get();
         }
     }

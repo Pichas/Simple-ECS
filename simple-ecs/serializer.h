@@ -16,7 +16,7 @@ requires std::is_trivially_copyable_v<Type>
 
 template<typename Type>
 requires std::is_trivially_copyable_v<Type>
-[[nodiscard]] constexpr Type deserialize(std::uint8_t*& data) {
+[[nodiscard]] constexpr Type deserialize(const std::uint8_t*& data) {
     std::size_t size = sizeof(Type);
 
     Type temp;
@@ -32,7 +32,7 @@ struct Serializer final {
     Serializer(World& world);
 
     std::vector<std::uint8_t> save();
-    void                      load(std::vector<std::uint8_t> data);
+    void                      load(std::span<const std::uint8_t> data);
 
     template<typename Component>
     requires std::is_trivially_copyable_v<Component>
@@ -43,7 +43,7 @@ struct Serializer final {
     void registerCustomSaver(Callback&& f);
 
     template<typename Component, typename Callback>
-    requires std::is_invocable_r_v<Component, Callback, std::uint8_t*&>
+    requires std::is_invocable_r_v<Component, Callback, const std::uint8_t*&>
     void registerCustomLoader(Callback&& f);
 
 private:
@@ -69,7 +69,7 @@ private:
 private:
     World&                                                                                 m_world;
     std::unordered_map<Component, std::function<void(Entity, std::vector<std::uint8_t>&)>> m_save_functions;
-    std::unordered_map<Component, std::function<void(Entity, std::uint8_t*& data)>>        m_load_functions;
+    std::unordered_map<Component, std::function<void(Entity, const std::uint8_t*& data)>>  m_load_functions;
 };
 
 template<typename Component>
@@ -97,11 +97,11 @@ void Serializer::registerCustomSaver(Callback&& f) { // NOLINT
 }
 
 template<typename Component, typename Callback>
-requires std::is_invocable_r_v<Component, Callback, std::uint8_t*&>
+requires std::is_invocable_r_v<Component, Callback, const std::uint8_t*&>
 void Serializer::registerCustomLoader(Callback&& f) { // NOLINT
     assert(!m_load_functions.contains(ID<Component>) && "Component already has load function");
     m_load_functions.emplace(ID<Component>,
-                             [&world = m_world, func = std::forward<Callback>(f)](Entity e, std::uint8_t*& data) {
+                             [&world = m_world, func = std::forward<Callback>(f)](Entity e, const std::uint8_t*& data) {
                                  Component&& comp = func(data);
                                  world.emplace(e, comp);
                                  world.markUpdated<Component>(e);

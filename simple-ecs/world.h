@@ -144,7 +144,8 @@ struct World final : NoCopyNoMove {
 
         auto* component = storage.template tryGet<Component>(e);
         if (component) {
-            *component = Component(std::forward<Args>(args)...);
+            std::destroy_at(component);
+            std::construct_at(component, std::forward<Args>(args)...);
         } else {
             storage.template emplace<Component>(e, std::forward<Args>(args)...);
         }

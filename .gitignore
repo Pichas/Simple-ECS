@@ -1,7 +1,7 @@
 build
 .cache
 imgui.ini
-.PVS-studio
+*.PVS-studio*
 .vs
 save
 logs/d

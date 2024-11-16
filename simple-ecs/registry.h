@@ -32,7 +32,7 @@
 
 
 struct Registry final : NoCopyNoMove {
-    Registry(World& world) : m_world(world), m_serializer(m_world) {}
+    Registry(World& world) : m_world(world), m_frame_ready(false), m_serializer(m_world) {}
     ~Registry() {
         for (const auto& system : std::views::values(m_systems)) {
             system->stop(*this);
