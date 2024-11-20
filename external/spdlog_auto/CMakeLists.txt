@@ -11,4 +11,7 @@ FetchContent_Declare(
     GIT_TAG        v1.14.1
 )
 
+option(SPDLOG_USE_STD_FORMAT "Use std::format instead of fmt library." ON)
+option(SPDLOG_NO_EXCEPTIONS "Compile with -fno-exceptions. Call abort() on any spdlog exceptions" ON)
+
 FetchContent_MakeAvailable(spdlog_git)
