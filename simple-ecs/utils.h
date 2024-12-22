@@ -132,18 +132,18 @@ constinit IDType ID = id<T>(); // NOLINT
 template<typename T>
 constexpr std::string serializeId() {
     auto id = ID<T>;
-    return {static_cast<const char* const>(static_cast<const void* const>(&id)), sizeof(id)};
+    return {std::launder(reinterpret_cast<const char* const>(&id)), sizeof(id)};
 }
 
 // operators
 template<typename T>
 inline const std::vector<T>& operator|(const std::vector<T>& lhs, const std::vector<T>& rhs) {
     if (lhs.empty()) {
-        return rhs;
+        return rhs; // NOLINT
     }
 
     if (rhs.empty()) {
-        return lhs;
+        return lhs; // NOLINT
     }
 
     static std::vector<T> result;
@@ -177,7 +177,7 @@ inline const std::vector<T>& operator-(const std::vector<T>& lhs, const std::vec
     }
 
     if (rhs.empty()) {
-        return lhs;
+        return lhs; // NOLINT
     }
 
     static std::vector<T> result;
@@ -191,11 +191,11 @@ inline const std::vector<T>& operator-(const std::vector<T>& lhs, const std::vec
 template<typename T>
 inline const std::vector<T>& operator+(const std::vector<T>& lhs, const std::vector<T>& rhs) { // append only uniq
     if (lhs.empty()) {
-        return rhs;
+        return rhs; // NOLINT
     }
 
     if (rhs.empty()) {
-        return lhs;
+        return lhs; // NOLINT
     }
 
     static std::vector<T> result;

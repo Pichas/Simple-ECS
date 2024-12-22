@@ -8,6 +8,7 @@
 
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/stopwatch.h>
+#include <algorithm>
 #include <chrono>
 #include <functional>
 #include <queue>
@@ -64,7 +65,7 @@ struct Registry final : NoCopyNoMove {
     template<typename System, typename... Filters>
     requires(sizeof...(Filters) > 0 && std::derived_from<System, BaseSystem>)
     void registerFunction(std::string_view fname, void (System::*f)(const Observer<Filters>&...), System* obj) {
-        bool exists = std::find(m_functions.begin(), m_functions.end(), fname) != m_functions.end();
+        bool exists = std::ranges::find(m_functions, fname) != m_functions.end();
         if (exists) {
             spdlog::critical("{} function is already registered", fname);
             assert(false);
@@ -77,7 +78,7 @@ struct Registry final : NoCopyNoMove {
     template<typename... Filters>
     requires(sizeof...(Filters) > 0)
     void registerFunction(std::string_view fname, void (*f)(const Observer<Filters>&...)) {
-        bool exists = std::find(m_functions.begin(), m_functions.end(), fname) != m_functions.end();
+        bool exists = std::ranges::find(m_functions, fname) != m_functions.end();
         if (exists) {
             spdlog::critical("{} function is already registered", fname);
             assert(false);
@@ -88,7 +89,7 @@ struct Registry final : NoCopyNoMove {
     }
 
     void unregisterFunction(std::string_view fname) {
-        bool exists = std::find(m_functions.begin(), m_functions.end(), fname) != m_functions.end();
+        bool exists = std::ranges::find(m_functions, fname) != m_functions.end();
         if (!exists) {
             spdlog::critical("{} function is already unregistered", fname);
             assert(false);
@@ -249,7 +250,7 @@ private:
 
         ECS_NOT_FINAL_ONLY(bool operator==(const Function& rhs) const noexcept { return m_name == rhs.m_name; })
         ECS_NOT_FINAL_ONLY(operator std::string_view() const noexcept { return m_name; })
-        ECS_NOT_FINAL_ONLY(operator std::string() const { return m_name.data(); })
+        ECS_NOT_FINAL_ONLY(operator std::string() const { return {m_name.data(), m_name.size()}; })
         ECS_NOT_FINAL_ONLY(std::string_view name() const noexcept { return m_name; })
         ECS_NOT_FINAL_ONLY(double executionTime() const noexcept { return m_time.count(); })
 
@@ -260,7 +261,7 @@ private:
         ECS_NOT_FINAL_ONLY(mutable std::chrono::duration<double> m_time{});
     };
 
-    inline void cleanup() {
+    void cleanup() {
         while (!m_cleanup_callbacks.empty()) {
             auto func = std::move(m_cleanup_callbacks.front());
             m_cleanup_callbacks.pop();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "simple-ecs/world.h"
+#include <algorithm>
 #include <type_traits>
 
 
@@ -90,8 +91,8 @@ void Serializer::registerCustomSaver(Callback&& f) { // NOLINT
               const std::vector<std::uint8_t>& bytes = func(comp);
 
               const std::vector<std::uint8_t>& id = serializer::serialize(ID<Component>);
-              std::copy(id.begin(), id.end(), std::back_inserter(data));
-              std::copy(bytes.begin(), bytes.end(), std::back_inserter(data));
+              std::ranges::copy(id, std::back_inserter(data));
+              std::ranges::copy(bytes, std::back_inserter(data));
           }
       });
 }
@@ -114,7 +115,7 @@ void Serializer::addSaveCallback() {
     m_save_functions.emplace(ID<Component>, [&world = m_world](Entity e, std::vector<std::uint8_t>& data) {
         if (world.has<Component>(e)) {
             const std::vector<std::uint8_t>& id = serializer::serialize(ID<Component>);
-            std::copy(id.begin(), id.end(), std::back_inserter(data));
+            std::ranges::copy(id, std::back_inserter(data));
         }
     });
 }

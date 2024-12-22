@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "simple-ecs/entity_debug.h"
 #include "simple-ecs/registrant.h"
 #include "simple-ecs/registry.h"
@@ -20,8 +22,8 @@ void EntityDebugSystem::setup(Registry& reg) {
       .setSaveFunc([](const Name& comp) {
           std::vector<std::uint8_t>        temp;
           const std::vector<std::uint8_t>& size = serializer::serialize(comp.name.size());
-          std::copy(size.begin(), size.end(), std::back_inserter(temp));
-          std::copy(comp.name.begin(), comp.name.end(), std::back_inserter(temp));
+          std::ranges::copy(size, std::back_inserter(temp));
+          std::ranges::copy(comp.name, std::back_inserter(temp));
           return temp;
       })
       .setLoadFunc([](const std::uint8_t*& data) {

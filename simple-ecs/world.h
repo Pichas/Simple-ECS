@@ -5,6 +5,7 @@
 #include "simple-ecs/storage.h"
 #include "simple-ecs/utils.h"
 
+#include <algorithm>
 #include <cassert>
 #include <list>
 #include <map>
@@ -41,7 +42,7 @@ struct World final : NoCopyNoMove {
 
     const std::vector<Entity>&              entities() const noexcept { return m_entities; }
     const std::map<std::string, Component>& registeredComponentNames() const noexcept { return m_component_name; }
-    bool isAlive(Entity e) const noexcept { return std::binary_search(m_entities.begin(), m_entities.end(), e); }
+    bool isAlive(Entity e) const noexcept { return std::ranges::binary_search(m_entities, e); }
 
     template<typename Component, typename Callback>
     void addDestroyCallback(Callback&& f) {
@@ -229,7 +230,7 @@ struct World final : NoCopyNoMove {
             m_free_entities.pop_back();
         }
 
-        auto lower = std::lower_bound(m_entities.begin(), m_entities.end(), entity);
+        auto lower = std::ranges::lower_bound(m_entities, entity);
         m_entities.insert(lower, entity);
 
         notify(entity);

@@ -2,12 +2,13 @@
 
 #include <spdlog/spdlog.h>
 #include <spdlog/stopwatch.h>
+#include <algorithm>
 #include <cassert>
 
 namespace detail::serializer
 {
 
-bool checkSaveLoadCallbacks(
+static bool checkSaveLoadCallbacks(
   const std::unordered_map<Component, std::function<void(Entity, std::vector<std::uint8_t>&)>>& save_functions,
   const std::unordered_map<Component, std::function<void(Entity, const std::uint8_t*&)>>&       load_functions) {
     if (save_functions.size() != load_functions.size()) {
@@ -15,8 +16,7 @@ bool checkSaveLoadCallbacks(
     }
 
     auto keys = std::views::keys(save_functions);
-    auto it =
-      std::find_if(keys.begin(), keys.end(), [&load_functions](Entity key) { return !load_functions.contains(key); });
+    auto it   = std::ranges::find_if(keys, [&load_functions](Entity key) { return !load_functions.contains(key); });
 
     return it == keys.end();
 }
@@ -34,7 +34,7 @@ std::vector<std::uint8_t> Serializer::save() {
 
     for (auto entity : m_world.entities()) {
         const std::vector<std::uint8_t>& id = serializer::serialize(ID<Component>);
-        std::copy(id.begin(), id.end(), std::back_inserter(data));
+        std::ranges::copy(id, std::back_inserter(data));
         for (const auto& func : std::views::values(m_save_functions)) {
             func(entity, data);
         }

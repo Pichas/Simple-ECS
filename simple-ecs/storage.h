@@ -4,6 +4,7 @@
 #include "simple-ecs/tools/void_callback.h"
 #include "tools/sparse_set.h"
 
+#include <algorithm>
 #include <span>
 
 
@@ -73,7 +74,7 @@ struct Storage final : SparseSet {
                 std::construct_at(comp_ptr, std::decay_t<Component>(std::forward<Args>(args)...));
             }
 
-            auto lower = std::lower_bound(m_ents.begin(), m_ents.end(), e);
+            auto lower = std::ranges::lower_bound(m_ents, e);
             m_ents.insert(lower, e);
 
             for (const auto& function : m_on_construct_callbacks) { // do something after construct
@@ -94,7 +95,7 @@ struct Storage final : SparseSet {
         if (has(e)) {
             eraseOne<Component>(e);
 
-            auto lower = std::lower_bound(m_ents.begin(), m_ents.end(), e);
+            auto lower = std::ranges::lower_bound(m_ents, e);
             m_ents.erase(lower);
         }
     }
@@ -113,8 +114,10 @@ struct Storage final : SparseSet {
             }
         }
 
-        auto it = std::set_difference(m_ents.begin(), m_ents.end(), ents.begin(), ents.end(), m_ents.begin());
-        m_ents.erase(it, m_ents.end());
+        std::vector<Entity> result;
+        result.reserve(m_ents.size());
+        std::ranges::set_difference(m_ents, ents, std::back_inserter(result));
+        m_ents = std::move(result);
     }
 
     template<typename Component>
