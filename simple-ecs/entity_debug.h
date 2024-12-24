@@ -60,7 +60,7 @@ struct Name {
 };
 
 template<>
-inline void debug(Name& component, Entity /*entity*/, bool& /*toMarkUpdated*/) {
+inline void debug(Name& component, Entity /*entity*/, bool& /*toMarkUpdated*/) { // NOLINT
 #ifdef ECS_ENABLE_IMGUI
     ImGui::Text("%s", component.name.data());
 #endif
@@ -159,7 +159,7 @@ struct EntityDebugSystem final : BaseSystem {
     }
 
 private:
-    void trackEntitiesCount(const Observer<RunEveryFrame>& /*unused*/);
+    void trackEntitiesCount(OBSERVER(RunEveryFrame) /*unused*/);
 
 private:
     bool showEntityInfoUI(Entity);

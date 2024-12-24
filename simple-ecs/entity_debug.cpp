@@ -10,7 +10,7 @@
 
 EntityDebugSystem::EntityDebugSystem(World& world) : m_world(world) {}
 
-void EntityDebugSystem::setup(Registry& reg) {
+void EntityDebugSystem::setup(Registry& reg) { // NOLINT
     ECS_NOT_FINAL_ONLY(ECS_REG_FUNC(reg, EntityDebugSystem::trackEntitiesCount));
 
     ComponentRegistrant<Name>(m_world)
@@ -35,7 +35,7 @@ void EntityDebugSystem::setup(Registry& reg) {
       });
 }
 
-void EntityDebugSystem::trackEntitiesCount(const Observer<RunEveryFrame>& /*unused*/) {
+void EntityDebugSystem::trackEntitiesCount(OBSERVER(RunEveryFrame) /*unused*/) {
 #ifdef ECS_ENABLE_IMGUI
     static float time_tick = 0;
 
@@ -171,7 +171,7 @@ void EntityDebugSystem::showEntityListUI() {
 #endif
 }
 
-bool EntityDebugSystem::showEntityInfoUI(Entity e) {
+bool EntityDebugSystem::showEntityInfoUI(Entity e) { // NOLINT
 #ifdef ECS_ENABLE_IMGUI
     bool show = true;
 

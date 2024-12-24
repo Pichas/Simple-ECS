@@ -287,8 +287,8 @@ struct World final : NoCopyNoMove {
     }
 
     void notify(std::span<const Entity> entities) {
-        for (auto entity : entities) {
-            for (const auto& func : m_notify_callback) {
+        for (const auto& func : m_notify_callback) {
+            for (auto entity : entities) {
                 func(entity);
             }
         }

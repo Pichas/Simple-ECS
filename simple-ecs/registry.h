@@ -42,19 +42,19 @@ struct Registry final : NoCopyNoMove {
         cleanup();
     }
 
-    Serializer& serializer() { return m_serializer; }
+    Serializer& serializer() noexcept { return m_serializer; }
 
 
 #ifdef ECS_FINAL
     template<typename System, typename... Filters>
     requires(sizeof...(Filters) > 0 && std::derived_from<System, BaseSystem>)
-    void registerFunction(std::uint32_t id, void (System::*f)(const Observer<Filters>&...), System* obj) {
+    void registerFunction(std::uint32_t id, void (System::*f)(OBSERVER(Filters)...), System* obj) {
         m_functions.emplace_back(id, f, obj, m_world);
     }
 
     template<typename... Filters>
     requires(sizeof...(Filters) > 0)
-    void registerFunction(std::uint32_t id, void (*f)(const Observer<Filters>&...)) {
+    void registerFunction(std::uint32_t id, void (*f)(OBSERVER(Filters)...)) {
         m_functions.emplace_back(id, f, m_world);
     }
 
@@ -64,7 +64,7 @@ struct Registry final : NoCopyNoMove {
 #else
     template<typename System, typename... Filters>
     requires(sizeof...(Filters) > 0 && std::derived_from<System, BaseSystem>)
-    void registerFunction(std::string_view fname, void (System::*f)(const Observer<Filters>&...), System* obj) {
+    void registerFunction(std::string_view fname, void (System::*f)(OBSERVER(Filters)...), System* obj) {
         bool exists = std::ranges::find(m_functions, fname) != m_functions.end();
         if (exists) {
             spdlog::critical("{} function is already registered", fname);
@@ -77,7 +77,7 @@ struct Registry final : NoCopyNoMove {
 
     template<typename... Filters>
     requires(sizeof...(Filters) > 0)
-    void registerFunction(std::string_view fname, void (*f)(const Observer<Filters>&...)) {
+    void registerFunction(std::string_view fname, void (*f)(OBSERVER(Filters)...)) {
         bool exists = std::ranges::find(m_functions, fname) != m_functions.end();
         if (exists) {
             spdlog::critical("{} function is already registered", fname);
@@ -160,7 +160,7 @@ struct Registry final : NoCopyNoMove {
 
     template<typename System>
     requires std::derived_from<System, BaseSystem>
-    std::remove_cvref_t<System>* getSystem() {
+    std::remove_cvref_t<System>* getSystem() noexcept {
         if (auto system = m_systems.find(ID<System>); system != m_systems.end()) {
             return static_cast<System*>(system->second.get());
         }
@@ -176,17 +176,17 @@ struct Registry final : NoCopyNoMove {
         }
     }
 
-    void syncWithRender() {
+    void syncWithRender() noexcept {
         while (m_frame_ready.load(std::memory_order_relaxed)) {}
     }
 
-    void frameSynchronized() { m_frame_ready.store(false, std::memory_order_relaxed); }
+    void frameSynchronized() noexcept { m_frame_ready.store(false, std::memory_order_relaxed); }
 
-    void waitFrame() {
+    void waitFrame() noexcept {
         while (!m_frame_ready.load(std::memory_order_relaxed)) {}
     }
 
-    void exec() {
+    void exec() noexcept {
         assert(m_init_callbacks.empty() && "all systems must be initialized");
 
         for (const auto& function : m_functions) {
@@ -222,23 +222,18 @@ private:
         Function& operator=(const Function& other) noexcept = delete;
         ~Function() noexcept                                = default;
 
-#ifndef ECS_FINAL
         template<typename System, typename... Filters>
-        Function(std::string_view name, void (System::*f)(const Observer<Filters>&...), System* obj, World& world)
-          : m_function([f, obj, &world] { std::invoke(f, obj, Observer<Filters>(world)...); }), m_name(name){};
-
-        template<typename... Filters>
-        Function(std::string_view name, void (*f)(const Observer<Filters>&...), World& world)
-          : m_function([f, &world] { std::invoke(f, Observer<Filters>(world)...); }), m_name(name) {}
-#else
-        template<typename System, typename... Filters>
-        Function(std::uint32_t id, void (System::*f)(const Observer<Filters>&...), System* obj, World& world)
+        Function(ECS_FINAL_SWITCH(std::uint32_t, std::string_view) id, //
+                 void (System::*f)(OBSERVER(Filters)...),
+                 System* obj,
+                 World&  world)
           : m_function([f, obj, &world] { std::invoke(f, obj, Observer<Filters>(world)...); }), m_id(id){};
 
         template<typename... Filters>
-        Function(std::uint32_t id, void (*f)(const Observer<Filters>&...), World& world)
+        Function(ECS_FINAL_SWITCH(std::uint32_t, std::string_view) id, //
+                 void (*f)(OBSERVER(Filters)...),
+                 World& world)
           : m_function([f, &world] { std::invoke(f, Observer<Filters>(world)...); }), m_id(id) {}
-#endif
 
         void operator()() const {
             ECS_NOT_FINAL_ONLY(spdlog::stopwatch sw);
@@ -248,20 +243,19 @@ private:
 
         ECS_FINAL_ONLY(operator std::uint32_t() const { return m_id; })
 
-        ECS_NOT_FINAL_ONLY(bool operator==(const Function& rhs) const noexcept { return m_name == rhs.m_name; })
-        ECS_NOT_FINAL_ONLY(operator std::string_view() const noexcept { return m_name; })
-        ECS_NOT_FINAL_ONLY(operator std::string() const { return {m_name.data(), m_name.size()}; })
-        ECS_NOT_FINAL_ONLY(std::string_view name() const noexcept { return m_name; })
+        ECS_NOT_FINAL_ONLY(bool operator==(const Function& rhs) const noexcept { return m_id == rhs.m_id; })
+        ECS_NOT_FINAL_ONLY(operator std::string_view() const noexcept { return m_id; })
+        ECS_NOT_FINAL_ONLY(operator std::string() const { return {m_id.data(), m_id.size()}; })
+        ECS_NOT_FINAL_ONLY(std::string_view name() const noexcept { return m_id; })
         ECS_NOT_FINAL_ONLY(double executionTime() const noexcept { return m_time.count(); })
 
     private:
         std::function<void(void)> m_function;
-        ECS_FINAL_ONLY(std::uint32_t m_id);
-        ECS_NOT_FINAL_ONLY(std::string_view m_name;)
+        ECS_FINAL_SWITCH(std::uint32_t, std::string_view) m_id;
         ECS_NOT_FINAL_ONLY(mutable std::chrono::duration<double> m_time{});
     };
 
-    void cleanup() {
+    void cleanup() noexcept {
         while (!m_cleanup_callbacks.empty()) {
             auto func = std::move(m_cleanup_callbacks.front());
             m_cleanup_callbacks.pop();

@@ -4,6 +4,7 @@
 #include "simple-ecs/filter.h"
 #include "simple-ecs/world.h"
 
+#define OBSERVER(Filter) const Observer<Filter>&
 
 template<typename Filter>
 struct Observer final : NoCopyNoMove {
@@ -16,7 +17,7 @@ struct Observer final : NoCopyNoMove {
         m_entities = filtered.entities.get() - excluded.entities.get();
     }
 
-    ~Observer() noexcept { ECS_DEBUG_ONLY(m_world.notify(m_entities)); }
+    ~Observer() noexcept { m_world.notify(m_entities); }
 
     Registry* getRegistry() const noexcept { return m_world.getRegistry(); }
 

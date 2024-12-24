@@ -47,6 +47,7 @@
 
 #define ECS_CASE(...) __VA_ARGS__
 #define ECS_DEBUG_RELEASE_SWITCH(x, y) ECS_DEBUG_ONLY(x) ECS_RELEASE_ONLY(y)
+#define ECS_FINAL_SWITCH(x, y) ECS_FINAL_ONLY(x) ECS_NOT_FINAL_ONLY(y)
 
 
 #define ECS_ASSERT(EXPR, MSG)                                                         \

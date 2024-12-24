@@ -64,7 +64,11 @@ template<typename... Component>
 struct FilteredEntities<AND<Components<Component...>>> {
     FilteredEntities(const World& world) {
         static std::vector<EntitiesWrapper> ents_by_comps{world.entities<Component>()...};
-        std::ranges::sort(ents_by_comps, std::less<>{}, [](const EntitiesWrapper& v) { return v.get().size(); });
+
+        if constexpr (sizeof...(Component) > 1) {
+            std::ranges::sort(
+              ents_by_comps, std::less<>{}, [](const EntitiesWrapper& v) noexcept { return v.get().size(); });
+        }
 
         entities = ents_by_comps.begin()->get();
         for (auto it = std::next(ents_by_comps.begin()); it != ents_by_comps.end(); ++it) {
@@ -87,7 +91,11 @@ template<typename... Component>
 struct FilteredEntities<OR<Components<Component...>>> {
     FilteredEntities(const World& world) {
         static std::vector<EntitiesWrapper> ents_by_comps{world.entities<Component>()...};
-        std::ranges::sort(ents_by_comps, std::less<>{}, [](const EntitiesWrapper& v) { return v.get().size(); });
+
+        if constexpr (sizeof...(Component) > 1) {
+            std::ranges::sort(
+              ents_by_comps, std::less<>{}, [](const EntitiesWrapper& v) noexcept { return v.get().size(); });
+        }
 
         entities = ents_by_comps.begin()->get();
         for (auto it = std::next(ents_by_comps.begin()); it != ents_by_comps.end(); ++it) {
@@ -103,22 +111,4 @@ struct FilteredEntities<OR<Components<>>> {
     FilteredEntities(const World& /*unused*/) {}
 
     EntitiesWrapper entities = EMPTY_ARRAY;
-};
-
-template<typename... T>
-struct SortedEntities;
-
-template<typename... Component>
-struct SortedEntities<Components<Component...>> {
-    SortedEntities(EntitiesWrapper entities, const World& world)
-      : entities(((entities & world.entities<Component>()) + ...) + entities) {}
-
-    EntitiesWrapper entities;
-};
-
-template<>
-struct SortedEntities<Components<>> {
-    SortedEntities(EntitiesWrapper entities, const World& /*world*/) : entities(entities) {}
-
-    EntitiesWrapper entities;
 };
