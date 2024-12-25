@@ -34,8 +34,8 @@ struct Storage final : SparseSet {
 
         assert(m_components_memory.empty() && "storage already in use");
 
-        ECS_DEBUG_ONLY(m_string_name = S_NAME<Component>);
-        ECS_DEBUG_ONLY(m_id = ID<Component>);
+        ECS_DEBUG_ONLY(m_string_name = ct::name<Component>);
+        ECS_DEBUG_ONLY(m_id = ct::ID<Component>);
 
         m_component_size = sizeof(Component);
 
@@ -51,20 +51,20 @@ struct Storage final : SparseSet {
 
     template<typename Component, typename Callback, typename... Args>
     void addDestroyCallback(Callback&& func) {
-        ECS_DEBUG_ONLY(assert(m_id == ID<Component>));
+        ECS_DEBUG_ONLY(assert(m_id == ct::ID<Component>));
         m_on_destroy_callbacks.emplace_back(voidCallbackBuilder<Args...>(std::forward<Callback>(func)));
     }
 
     template<typename Component, typename Callback, typename... Args>
     void addConstructCallback(Callback&& func) {
-        ECS_DEBUG_ONLY(assert(m_id == ID<Component>));
+        ECS_DEBUG_ONLY(assert(m_id == ct::ID<Component>));
         m_on_construct_callbacks.emplace_back(voidCallbackBuilder<Args...>(std::forward<Callback>(func)));
     }
 
     template<typename Component, typename... Args>
     requires std::is_constructible_v<Component, Args...>
     ECS_FORCEINLINE void emplace(Entity e, Args&&... args) {
-        ECS_DEBUG_ONLY(assert(m_id == ID<Component>));
+        ECS_DEBUG_ONLY(assert(m_id == ct::ID<Component>));
 
         if (SparseSet::emplace(e)) {
             if constexpr (!std::is_empty_v<Component>) {
@@ -90,7 +90,7 @@ struct Storage final : SparseSet {
 
     template<typename Component>
     ECS_FORCEINLINE void erase(Entity e) {
-        ECS_DEBUG_ONLY(assert(m_id == ID<Component>));
+        ECS_DEBUG_ONLY(assert(m_id == ct::ID<Component>));
 
         if (has(e)) {
             eraseOne<Component>(e);
@@ -102,7 +102,7 @@ struct Storage final : SparseSet {
 
     template<typename Component>
     ECS_FORCEINLINE void erase(std::span<const Entity> ents) {
-        ECS_DEBUG_ONLY(assert(m_id == ID<Component>));
+        ECS_DEBUG_ONLY(assert(m_id == ct::ID<Component>));
 
         if (ents.empty()) {
             return;
@@ -123,7 +123,7 @@ struct Storage final : SparseSet {
     template<typename Component>
     requires(!std::is_empty_v<Component>)
     [[nodiscard]] ECS_FORCEINLINE Component& get(Entity e) noexcept {
-        ECS_DEBUG_ONLY(assert(m_id == ID<Component>));
+        ECS_DEBUG_ONLY(assert(m_id == ct::ID<Component>));
 
         assert(has(e) && "Cannot get a component which an entity does not have");
         auto* ptr = reinterpret_cast<Component*>(&m_components_memory[m_sparse[e] * m_component_size]);
@@ -133,7 +133,7 @@ struct Storage final : SparseSet {
     template<typename Component>
     requires(!std::is_empty_v<Component>)
     [[nodiscard]] ECS_FORCEINLINE Component* tryGet(Entity e) noexcept {
-        ECS_DEBUG_ONLY(assert(m_id == ID<Component>));
+        ECS_DEBUG_ONLY(assert(m_id == ct::ID<Component>));
 
         if (has(e)) {
             auto* ptr = reinterpret_cast<Component*>(&m_components_memory[m_sparse[e] * m_component_size]);
@@ -145,7 +145,7 @@ struct Storage final : SparseSet {
 private:
     template<typename Component>
     ECS_FORCEINLINE void eraseOne(Entity e) {
-        ECS_DEBUG_ONLY(assert(m_id == ID<Component>));
+        ECS_DEBUG_ONLY(assert(m_id == ct::ID<Component>));
 
         for (const auto& function : m_on_destroy_callbacks) { // do something before remove
             if constexpr (std::is_empty_v<Component>) {

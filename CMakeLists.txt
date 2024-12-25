@@ -12,14 +12,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(H_FILES
     simple-ecs/base_system.h
     simple-ecs/components.h
-    simple-ecs/tools/crc_ct.h
     simple-ecs/entity.h
     simple-ecs/entity_iterator.h
     simple-ecs/entity_debug.cpp
     simple-ecs/entity_debug.h
     simple-ecs/filter.h
     simple-ecs/observer.h
-    simple-ecs/tools/random.h
     simple-ecs/registrant.h
     simple-ecs/registry.h
     simple-ecs/serializer.cpp
@@ -49,8 +47,7 @@ add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
-target_compile_definitions(${PROJECT_NAME} PUBLIC CRCPP_USE_CPP11)
-target_link_libraries(${PROJECT_NAME} PUBLIC spdlog)
+target_link_libraries(${PROJECT_NAME} PUBLIC spdlog CT-Utils)
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(ECS_FINAL)

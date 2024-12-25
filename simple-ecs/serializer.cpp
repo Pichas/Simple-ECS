@@ -33,7 +33,7 @@ std::vector<std::uint8_t> Serializer::save() {
     std::vector<std::uint8_t> data;
 
     for (auto entity : m_world.entities()) {
-        const std::vector<std::uint8_t>& id = serializer::serialize(ID<Component>);
+        const std::vector<std::uint8_t>& id = serializer::serialize(ct::ID<Component>);
         std::ranges::copy(id, std::back_inserter(data));
         for (const auto& func : std::views::values(m_save_functions)) {
             func(entity, data);
@@ -62,7 +62,7 @@ void Serializer::load(std::span<const std::uint8_t> data) {
         auto comp_id = *std::launder(reinterpret_cast<const Component*>(ptr));
         ptr += sizeof(IDType);
 
-        if (ID<Entity> == comp_id) {
+        if (ct::ID<Entity> == comp_id) {
             entity = m_world.create();
             continue;
         }
