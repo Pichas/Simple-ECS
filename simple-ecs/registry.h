@@ -106,7 +106,7 @@ struct Registry final : NoCopyNoMove {
         using namespace std::literals;
 
         assert(every >= 100ms && "Doesn't support time less than 100ms");
-        m_parallel_jobs[ID<Component>].emplace_back(
+        m_parallel_jobs[ct::ID<Component>].emplace_back(
           [](const std::stop_token& stoken, bool (System::*function)(), System* obj, Time time) {
               spdlog::stopwatch sw;
 
@@ -125,22 +125,22 @@ struct Registry final : NoCopyNoMove {
           obj,
           every);
 
-        spdlog::debug("Job for {} was started", S_NAME<System>);
+        spdlog::debug("Job for {} was started", ct::name<System>);
     }
 
     template<typename System, typename... Args>
     requires std::derived_from<System, BaseSystem>
     void addSystem(Args&&... args) {
-        assert(!m_systems.contains(ID<System>) && "system is already registered");
-        spdlog::debug("register: {}", SV_NAME<System>);
+        assert(!m_systems.contains(ct::ID<System>) && "system is already registered");
+        spdlog::debug("register: {}", ct::name_sv<System>);
 
         auto system = std::make_unique<System>(std::forward<Args>(args)...);
         m_init_callbacks.emplace([system = system.get(), this]() {
-            spdlog::debug("init: {}", SV_NAME<System>);
+            spdlog::debug("init: {}", ct::name_sv<System>);
             system->setup(*this);
         });
 
-        m_systems.emplace(ID<System>, std::move(system));
+        m_systems.emplace(ct::ID<System>, std::move(system));
     }
 
     template<typename System>
@@ -151,7 +151,7 @@ struct Registry final : NoCopyNoMove {
 
         // stop system
         m_cleanup_callbacks.emplace([system_ptr = system->second.get(), this] {
-            spdlog::debug("remove: {}", SV_NAME<System>);
+            spdlog::debug("remove: {}", ct::name_sv<System>);
             system_ptr->stop(*this);
             m_parallel_jobs.erase(system_ptr);
             m_systems.erase(system);
@@ -161,7 +161,7 @@ struct Registry final : NoCopyNoMove {
     template<typename System>
     requires std::derived_from<System, BaseSystem>
     std::remove_cvref_t<System>* getSystem() noexcept {
-        if (auto system = m_systems.find(ID<System>); system != m_systems.end()) {
+        if (auto system = m_systems.find(ct::ID<System>); system != m_systems.end()) {
             return static_cast<System*>(system->second.get());
         }
         return nullptr;

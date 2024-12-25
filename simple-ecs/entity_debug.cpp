@@ -23,7 +23,8 @@ void EntityDebugSystem::setup(Registry& reg) { // NOLINT
           std::vector<std::uint8_t>        temp;
           const std::vector<std::uint8_t>& size = serializer::serialize(comp.name.size());
           std::ranges::copy(size, std::back_inserter(temp));
-          std::ranges::copy(comp.name, std::back_inserter(temp));
+          // BUG: throws iterator error when use comp.name directly
+          std::ranges::copy(std::string_view(comp.name), std::back_inserter(temp));
           return temp;
       })
       .setLoadFunc([](const std::uint8_t*& data) {

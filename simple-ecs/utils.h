@@ -1,12 +1,11 @@
 #pragma once
 
 #include "simple-ecs/entity.h"
-#include "tools/crc_ct.h"
+#include "ct/names.h"
 
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cassert>
-#include <string_view>
 #include <vector>
 
 
@@ -50,12 +49,12 @@
 #define ECS_FINAL_SWITCH(x, y) ECS_FINAL_ONLY(x) ECS_NOT_FINAL_ONLY(y)
 
 
-#define ECS_ASSERT(EXPR, MSG)                                                         \
-    {                                                                                 \
-        assert((EXPR) || ([]() {                                                      \
-                   spdlog::critical("TYPE: {}, MSG: {}\n\n", name<Component>(), MSG); \
-                   return false;                                                      \
-               }()));                                                                 \
+#define ECS_ASSERT(EXPR, MSG)                                                           \
+    {                                                                                   \
+        assert((EXPR) || ([]() {                                                        \
+                   spdlog::critical("TYPE: {}, MSG: {}\n\n", ct::name<Component>, MSG); \
+                   return false;                                                        \
+               }()));                                                                   \
     }
 
 // we cannot use static_assert(false), but we can use this function instead
@@ -77,62 +76,10 @@ struct NoCopyNoMove {
     NoCopyNoMove& operator=(NoCopyNoMove&&)      = delete;
 };
 
-template<auto N>
-struct string_literal {
-    constexpr string_literal(const char (&str)[N]) : size(N) { // NOLINT
-        std::copy_n(str, N, value);
-    }
-    char        value[N]{}; // NOLINT
-    std::size_t size;
-};
-
-template<string_literal T>
-consteval auto operator"" _crc() {
-    return crc32::compute(T.value);
-}
-
-
-template<typename T>
-consteval std::string_view name() {
-    constexpr std::string_view name(__PRETTY_FUNCTION__);
-    return name;
-}
-
-template<typename... T>
-consteval std::string_view name(T&&...) { // NOLINT
-    constexpr std::string_view name(__PRETTY_FUNCTION__);
-    return name;
-}
-
-template<typename T>
-consteval std::string_view svName() {
-    auto fn = name<T>();
-    return {fn.begin() + ECS_OFFSET_LEFT, fn.end() - ECS_OFFSET_RIGHT};
-}
-
-template<typename T>
-inline constinit std::string_view SV_NAME = svName<T>(); // NOLINT
-
-template<typename T>
-constexpr std::string sName() {
-    auto fn = name<T>();
-    return {fn.begin() + ECS_OFFSET_LEFT, fn.end() - ECS_OFFSET_RIGHT};
-}
-
-template<typename T>
-std::string S_NAME = sName<T>(); // NOLINT
-
-template<typename T>
-consteval IDType id() {
-    return crc32::compute(name<T>());
-};
-
-template<typename T>
-constinit IDType ID = id<T>(); // NOLINT
 
 template<typename T>
 constexpr std::string serializeId() {
-    auto id = ID<T>;
+    auto id = ct::ID<T>;
     return {std::launder(reinterpret_cast<const char* const>(&id)), sizeof(id)};
 }
 
@@ -211,27 +158,3 @@ inline const std::vector<T>& operator+(const std::vector<T>& lhs, const std::vec
     result.insert(result.end(), uniq_to_append.begin(), uniq_to_append.end());
     return result;
 }
-
-// compile time enum with string values
-#define ECS_MAKE_ENUM(enum_name, ...)                                                                            \
-    enum class enum_name { __VA_ARGS__, ENUM_SIZE };                                                             \
-    inline constinit const std::size_t ENUM_##enum_name##_SIZE = static_cast<std::size_t>(enum_name::ENUM_SIZE); \
-    template<enum_name Value>                                                                                    \
-    inline consteval std::string_view name() {                                                                   \
-        static_assert(Value < enum_name::ENUM_SIZE);                                                             \
-        std::string_view str   = #__VA_ARGS__;                                                                   \
-        std::string_view delim = ", ";                                                                           \
-        std::size_t      index = 0;                                                                              \
-        std::size_t      pos   = 0;                                                                              \
-        while (std::string::npos != pos) {                                                                       \
-            std::size_t begin  = pos;                                                                            \
-            pos                = str.find(delim, pos) + delim.size();                                            \
-            std::size_t end    = std::string::npos == pos ? str.size() : pos - delim.size();                     \
-            std::size_t length = end - begin;                                                                    \
-            if (static_cast<std::size_t>(Value) == index) {                                                      \
-                return str.substr(begin, length);                                                                \
-            }                                                                                                    \
-            index++;                                                                                             \
-        }                                                                                                        \
-        return "";                                                                                               \
-    }

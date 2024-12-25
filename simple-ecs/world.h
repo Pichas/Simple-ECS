@@ -92,7 +92,7 @@ struct World final : NoCopyNoMove {
         add_storage.template operator()<Component>();
         add_storage.template operator()<Tag>();
 
-        m_component_name.emplace(S_NAME<Component>, ID<Component>);
+        m_component_name.emplace(ct::name<Component>, ct::ID<Component>);
     }
 
     template<typename Component>

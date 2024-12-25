@@ -38,8 +38,8 @@ requires(std::is_empty_v<Component>)
 void debug(World& w, Entity e) {
     if (w.has<Component>(e)) {
 #ifdef ECS_ENABLE_IMGUI
-        ImGui::PushID(S_NAME<Component>.data());
-        ImGui::Text("%s", S_NAME<Component>.c_str());
+        ImGui::PushID(ct::name<Component>.data());
+        ImGui::Text("%s", ct::name<Component>.c_str());
         ImGui::SameLine();
         if (ImGui::SmallButton("Remove")) {
             w.erase<Component>(e);
@@ -92,7 +92,7 @@ struct EntityDebugSystem final : BaseSystem {
             bool       state = true;
 
 #ifdef ECS_ENABLE_IMGUI
-            if (c && ImGui::CollapsingHeader(S_NAME<Component>.c_str(), &state)) {
+            if (c && ImGui::CollapsingHeader(ct::name<Component>.c_str(), &state)) {
                 ImGui::PushID(c);
                 ImGui::Indent();
 
@@ -155,7 +155,7 @@ struct EntityDebugSystem final : BaseSystem {
     // create a Component with default ctor
     template<typename Component>
     void registerAddComponent() {
-        m_create_callbacks.emplace(S_NAME<Component>, [&world = m_world](Entity e) { world.emplace<Component>(e); });
+        m_create_callbacks.emplace(ct::name<Component>, [&world = m_world](Entity e) { world.emplace<Component>(e); });
     }
 
 private:
