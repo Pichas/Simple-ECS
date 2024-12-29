@@ -38,14 +38,14 @@ struct ComponentRegistrant {
     }
 
     template<typename Callback>
-    auto& addDestroyCallback(Callback&& f) {
-        (m_world.addDestroyCallback<Components>(std::forward<Callback>(f)), ...);
+    auto& addEmplaceCallback(Callback&& f) {
+        (m_world.addEmplaceCallback<Components>(std::forward<Callback>(f)), ...);
         return *this;
     }
 
     template<typename Callback>
-    auto& addConstructCallback(Callback&& f) {
-        (m_world.addConstructCallback<Components>(std::forward<Callback>(f)), ...);
+    auto& addDestroyCallback(Callback&& f) {
+        (m_world.addDestroyCallback<Components>(std::forward<Callback>(f)), ...);
         return *this;
     }
 

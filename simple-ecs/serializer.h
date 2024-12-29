@@ -2,6 +2,7 @@
 
 #include "simple-ecs/world.h"
 #include <algorithm>
+#include <cstring>
 #include <type_traits>
 
 
@@ -84,7 +85,7 @@ template<typename Component, typename Callback>
 requires std::is_invocable_r_v<std::vector<std::uint8_t>, Callback, const Component&>
 void Serializer::registerCustomSaver(Callback&& f) { // NOLINT
     assert(!m_save_functions.contains(ct::ID<Component>) && "Component already has save function");
-    m_save_functions.emplace(
+    auto [_, was_added] = m_save_functions.try_emplace(
       ct::ID<Component>,
       [&world = m_world, func = std::forward<Callback>(f)](Entity e, std::vector<std::uint8_t>& data) {
           if (world.has<Component>(e)) {
@@ -96,38 +97,44 @@ void Serializer::registerCustomSaver(Callback&& f) { // NOLINT
               std::ranges::copy(bytes, std::back_inserter(data));
           }
       });
+    assert(was_added);
 }
 
 template<typename Component, typename Callback>
 requires std::is_invocable_r_v<Component, Callback, const std::uint8_t*&>
 void Serializer::registerCustomLoader(Callback&& f) { // NOLINT
     assert(!m_load_functions.contains(ct::ID<Component>) && "Component already has load function");
-    m_load_functions.emplace(ct::ID<Component>,
-                             [&world = m_world, func = std::forward<Callback>(f)](Entity e, const std::uint8_t*& data) {
-                                 Component&& comp = func(data);
-                                 world.emplace(e, std::move(comp));
-                                 world.markUpdated<Component>(e);
-                             });
+    auto [_, was_added] = m_load_functions.try_emplace(
+      ct::ID<Component>, [&world = m_world, func = std::forward<Callback>(f)](Entity e, const std::uint8_t*& data) {
+          Component&& comp = func(data);
+          world.emplace(e, std::move(comp));
+          world.markUpdated<Component>(e);
+      });
+    assert(was_added);
 }
 
 template<typename Component>
 requires(std::is_empty_v<Component>)
 void Serializer::addSaveCallback() {
-    m_save_functions.emplace(ct::ID<Component>, [&world = m_world](Entity e, std::vector<std::uint8_t>& data) {
-        if (world.has<Component>(e)) {
-            const std::vector<std::uint8_t>& id = serializer::serialize(ct::ID<Component>);
-            std::ranges::copy(id, std::back_inserter(data));
-        }
-    });
+    auto [_, was_added] =
+      m_save_functions.try_emplace(ct::ID<Component>, [&world = m_world](Entity e, std::vector<std::uint8_t>& data) {
+          if (world.has<Component>(e)) {
+              const std::vector<std::uint8_t>& id = serializer::serialize(ct::ID<Component>);
+              std::ranges::copy(id, std::back_inserter(data));
+          }
+      });
+    assert(was_added);
 }
 
 template<typename Component>
 requires(std::is_empty_v<Component>)
 void Serializer::addLoadCallback() {
-    m_load_functions.emplace(ct::ID<Component>, [&world = m_world](Entity e, const std::uint8_t*& /*fs*/) {
-        world.emplace<Component>(e);
-        world.markUpdated<Component>(e);
-    });
+    auto [_, was_added] =
+      m_load_functions.try_emplace(ct::ID<Component>, [&world = m_world](Entity e, const std::uint8_t*& /*fs*/) {
+          world.emplace<Component>(e);
+          world.markUpdated<Component>(e);
+      });
+    assert(was_added);
 }
 
 template<typename Component>

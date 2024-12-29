@@ -10,17 +10,11 @@
 
 
 #if __clang__
-#define ECS_OFFSET_LEFT 29
-#define ECS_OFFSET_RIGHT 1
-#define ECS_FORCEINLINE __forceinline
+#define ECS_FORCEINLINE __attribute__((always_inline))
 #elif _MSC_VER
 #define __PRETTY_FUNCTION__ __FUNCSIG__ // NOLINT //-V2573
-#define ECS_OFFSET_LEFT 79
-#define ECS_OFFSET_RIGHT 7
 #define ECS_FORCEINLINE __forceinline
 #elif defined(__GNUC__) || defined(__GNUG__)
-#define ECS_OFFSET_LEFT 44
-#define ECS_OFFSET_RIGHT 50
 #define ECS_FORCEINLINE __attribute__((always_inline))
 #endif
 
@@ -28,7 +22,7 @@
 #define ECS_MACRO_CONCAT(x, y) ECS_CONCAT_IMPL(x, y)
 #define ECS_DEFINE_UNIQUE(name) ECS_MACRO_CONCAT(name, __COUNTER__)
 
-#if _DEBUG
+#if 1
 #define ECS_DEBUG_ONLY(...) __VA_ARGS__
 #define ECS_RELEASE_ONLY(...)
 #else
@@ -50,12 +44,12 @@
 
 
 #define ECS_ASSERT(EXPR, MSG)                                                           \
-    {                                                                                   \
+    do {                                                                                \
         assert((EXPR) || ([]() {                                                        \
                    spdlog::critical("TYPE: {}, MSG: {}\n\n", ct::name<Component>, MSG); \
                    return false;                                                        \
                }()));                                                                   \
-    }
+    } while (0)
 
 // we cannot use static_assert(false), but we can use this function instead
 void compiletimeFail(const char*);

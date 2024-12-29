@@ -39,67 +39,63 @@ struct World final : NoCopyNoMove {
     decltype(auto) begin() const noexcept { return m_entities.cbegin(); }
     decltype(auto) end() const noexcept { return m_entities.cend(); }
     decltype(auto) size() const noexcept { return m_entities.size(); }
+    decltype(auto) empty() const noexcept { return m_entities.empty(); }
 
     const std::vector<Entity>&              entities() const noexcept { return m_entities; }
     const std::map<std::string, Component>& registeredComponentNames() const noexcept { return m_component_name; }
     bool isAlive(Entity e) const noexcept { return std::ranges::binary_search(m_entities, e); }
 
-    template<typename Component, typename Callback>
-    void addDestroyCallback(Callback&& f) {
+    template<typename Component>
+    void addEmplaceCallback(Storage<Component>::Callback&& f) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
-        auto& storage = m_storages.at(detail::sequenceID<Component>());
-
-        if constexpr (std::is_empty_v<Component>) {
-            static_assert(std::is_invocable_r_v<void, Callback, Entity>);
-            storage.template addDestroyCallback<Component, Callback, Entity>(std::forward<Callback>(f));
-        } else {
-            static_assert(std::is_invocable_r_v<void, Callback, Entity, Component&>);
-            storage.template addDestroyCallback<Component, Callback, Entity, Component&>(std::forward<Callback>(f));
-        }
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        storage->addEmplaceCallback(std::move(f));
     }
 
-    template<typename Component, typename Callback>
-    void addConstructCallback(Callback&& f) {
+    template<typename Component>
+    void addDestroyCallback(Storage<Component>::Callback&& f) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
-        auto& storage = m_storages.at(detail::sequenceID<Component>());
-
-        if constexpr (std::is_empty_v<Component>) {
-            static_assert(std::is_invocable_r_v<void, Callback, Entity>);
-            storage.template addConstructCallback<Component, Callback, Entity>(std::forward<Callback>(f));
-        } else {
-            static_assert(std::is_invocable_r_v<void, Callback, Entity, Component&>);
-            storage.template addConstructCallback<Component, Callback, Entity, Component&>(std::forward<Callback>(f));
-        }
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        storage->addDestroyCallback(std::move(f));
     }
 
     template<typename Component>
     decltype(auto) size() const noexcept {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
-        return m_storages.at(detail::sequenceID<Component>())->size();
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        return storage->size();
     }
 
     template<typename Component>
-    void createStorage() {
-        using Tag = Updated<Component>;
+    decltype(auto) empty() const noexcept {
+        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        return storage->empty();
+    }
 
+
+    template<typename Component>
+    void createStorage() {
         auto add_storage = [this]<typename T>() {
             // generate runtime ID for components.
             std::ignore = detail::sequenceID<T>();
             ECS_ASSERT(m_storages.size() == detail::sequenceID<T>(), "Storage already exists");
-            m_storages.emplace_back().setType<T>();
+            m_storages.emplace_back(std::make_unique<Storage<T>>());
         };
 
         add_storage.template operator()<Component>();
-        add_storage.template operator()<Tag>();
+        add_storage.template operator()<Updated<Component>>();
 
-        m_component_name.emplace(ct::name<Component>, ct::ID<Component>);
+        auto [_, was_added] = m_component_name.try_emplace(ct::name<Component>, ct::ID<Component>);
+        assert(was_added);
     }
 
     template<typename Component>
     ECS_FORCEINLINE bool has(Entity e) noexcept {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        return m_storages.at(detail::sequenceID<Component>()).has(e);
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        return storage->has(e);
     }
 
     template<typename Component, typename Type = std::remove_cvref_t<Component>>
@@ -107,8 +103,8 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE void emplace(Entity e, Component&& c) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Type>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto& storage = m_storages.at(detail::sequenceID<Type>());
-        storage.template emplace<Type>(e, std::forward<Component>(c));
+        auto* storage = static_cast<Storage<Type>*>(m_storages.at(detail::sequenceID<Type>()).get());
+        storage->emplace(e, std::forward<Component>(c));
         notify(e);
     }
 
@@ -116,8 +112,8 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE void emplace(Entity e, Args&&... args) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto& storage = m_storages.at(detail::sequenceID<Component>());
-        storage.template emplace<Component>(e, std::forward<Args>(args)...);
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        storage->emplace(e, std::forward<Args>(args)...);
         notify(e);
     }
 
@@ -126,9 +122,9 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE void forceEmplace(Entity e, Component&& c) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Type>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto& storage = m_storages.at(detail::sequenceID<Type>());
-        storage.template erase<Type>(e);
-        storage.template emplace<Type>(e, std::forward<Component>(c));
+        auto* storage = static_cast<Storage<Type>*>(m_storages.at(detail::sequenceID<Type>()).get());
+        storage->erase(e);
+        storage->emplace(e, std::forward<Component>(c));
         notify(e);
     }
 
@@ -136,9 +132,9 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE void forceEmplace(Entity e, Args&&... args) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto& storage = m_storages.at(detail::sequenceID<Component>());
-        storage.template erase<Component>(e);
-        storage.template emplace<Component>(e, std::forward<Args>(args)...);
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        storage->erase(e);
+        storage->emplace(e, std::forward<Args>(args)...);
         notify(e);
     }
 
@@ -178,8 +174,8 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE void erase(Entity e) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto& storage = m_storages.at(detail::sequenceID<Component>());
-        storage.template erase<Component>(e);
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        storage->erase(e);
         notify(e);
     }
 
@@ -187,8 +183,8 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE void erase(std::span<const Entity> ents) {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(std::ranges::all_of(ents, [this](const Entity& e) { return isAlive(e); }), "Entity doesn't exist");
-        auto& storage = m_storages.at(detail::sequenceID<Component>());
-        storage.template erase<Component>(ents);
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        storage->erase(ents);
         notify(ents);
     }
 
@@ -197,8 +193,8 @@ struct World final : NoCopyNoMove {
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) get(Entity e) noexcept {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto& storage = m_storages.at(detail::sequenceID<Component>());
-        return storage.template get<Component>(e);
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        return storage->get(e);
     }
 
     template<typename Component>
@@ -206,14 +202,15 @@ struct World final : NoCopyNoMove {
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) tryGet(Entity e) noexcept {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto& storage = m_storages.at(detail::sequenceID<Component>());
-        return storage.template tryGet<Component>(e);
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        return storage->tryGet(e);
     }
 
     template<typename Component>
     [[nodiscard]] const std::vector<Entity>& entities() const noexcept {
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
-        return m_storages.at(detail::sequenceID<Component>()).entities();
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        return storage->entities();
     }
 
     [[nodiscard]] Entity create() {
@@ -237,11 +234,16 @@ struct World final : NoCopyNoMove {
         return entity;
     }
 
-    void destroy(Entity e) { m_entities_to_destroy.emplace_back(e); }
+    void destroy(Entity e) {
+        auto it = std::ranges::find(m_entities_to_destroy, e);
+        if (it == m_entities_to_destroy.end()) {
+            m_entities_to_destroy.emplace_back(e);
+        }
+    }
 
     void destroy(std::span<const Entity> entities) {
         for (auto entity : entities) {
-            m_entities_to_destroy.emplace_back(entity);
+            destroy(entity);
         }
     }
 
@@ -249,7 +251,7 @@ struct World final : NoCopyNoMove {
         for (auto entity : std::views::reverse(m_entities_to_destroy)) {
             ECS_ASSERT(isAlive(entity), "Entity doesn't exist");
             for (auto& storage : m_storages) {
-                storage.remove(entity);
+                storage->remove(entity);
             }
 
             std::erase(m_entities, entity);
@@ -270,8 +272,8 @@ struct World final : NoCopyNoMove {
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         std::vector<std::string> names;
         for (const auto& storage : m_storages) {
-            if (storage.has(e)) {
-                ECS_DEBUG_ONLY(names.emplace_back(storage.name()));
+            if (storage->has(e)) {
+                ECS_DEBUG_ONLY(names.emplace_back(storage->name()));
             }
         }
 
@@ -295,11 +297,11 @@ struct World final : NoCopyNoMove {
     }
 
 private:
-    std::unique_ptr<Registry>                m_reg;
-    std::vector<Entity>                      m_entities;
-    std::vector<Entity>                      m_entities_to_destroy;
-    std::vector<Storage>                     m_storages;
-    std::vector<std::function<void(Entity)>> m_notify_callback;
-    std::list<Entity>                        m_free_entities;
-    std::map<std::string, Component>         m_component_name;
+    std::unique_ptr<Registry>                 m_reg;
+    std::vector<Entity>                       m_entities;
+    std::vector<Entity>                       m_entities_to_destroy;
+    std::vector<std::unique_ptr<StorageBase>> m_storages;
+    std::vector<std::function<void(Entity)>>  m_notify_callback;
+    std::list<Entity>                         m_free_entities;
+    std::map<std::string, Component>          m_component_name;
 };

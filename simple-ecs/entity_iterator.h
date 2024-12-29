@@ -14,14 +14,12 @@ struct ComponentsTuple;
 
 template<typename Observer, typename... Component>
 struct ComponentsTuple<Observer, Components<Component...>> {
-    using Type = std::tuple<RemoveTag_t<Component>&...>;
-    static Type create(const Observer& observer, Entity e) {
-        return {observer.template get<RemoveTag_t<Component>>(e)...};
-    }
+    using Tuple = std::tuple<Component&...>;
+    static Tuple create(const Observer& observer, Entity e) { return {observer.template get<Component>(e)...}; }
 
-    using ConstType = std::tuple<const RemoveTag_t<Component>&...>;
-    static ConstType createConst(const Observer& observer, Entity e) {
-        return {observer.template get<RemoveTag_t<Component>>(e)...};
+    using ConstTuple = std::tuple<const Component&...>;
+    static ConstTuple createConst(const Observer& observer, Entity e) {
+        return {observer.template get<Component>(e)...};
     }
 };
 } // namespace detail
@@ -32,18 +30,22 @@ struct EntityWrapper final {
     using Require = typename Observer::Require;
 
     EntityWrapper(Entity e, const Observer& observer) : m_entity(e), m_observer(observer) {}
-    EntityWrapper(const EntityWrapper&)                = delete;
-    EntityWrapper(EntityWrapper&&) noexcept            = delete;
-    EntityWrapper& operator=(const EntityWrapper&)     = delete;
-    EntityWrapper& operator=(EntityWrapper&&) noexcept = delete;
+    EntityWrapper(const EntityWrapper&)                = default;
+    EntityWrapper(EntityWrapper&&) noexcept            = default;
+    EntityWrapper& operator=(const EntityWrapper&)     = default;
+    EntityWrapper& operator=(EntityWrapper&&) noexcept = default;
     ~EntityWrapper() noexcept                          = default;
 
     operator Entity() const noexcept { return m_entity; }
-    decltype(auto) asTuple() const { return detail::ComponentsTuple<Observer, Require>::create(m_observer, m_entity); }
-    decltype(auto) asConstTuple() const {
-        return detail::ComponentsTuple<Observer, Require>::createConst(m_observer, m_entity);
+    decltype(auto) get() {
+        return detail::ComponentsTuple<Observer, RemoveEmpty_t<RemoveTags_t<Require>>>::create(m_observer, m_entity);
     }
-    bool isAlive() const noexcept { return m_observer.isAlive(*this); }
+    decltype(auto) get() const {
+        return detail::ComponentsTuple<Observer, RemoveEmpty_t<RemoveTags_t<Require>>>::createConst(m_observer,
+                                                                                                    m_entity);
+    }
+    ECS_FORCEINLINE bool isAlive() const noexcept { return m_observer.isAlive(*this); }
+    ECS_FORCEINLINE void destroy() const { m_observer.destroy(*this); }
 
     template<typename Component>
     requires(!std::is_empty_v<Component>)
@@ -72,19 +74,19 @@ struct EntityWrapper final {
         m_observer.template emplaceTagged<Component>(*this, std::forward<Args>(args)...);
     }
 
-    template<typename Component>
+    template<typename... Component>
     ECS_FORCEINLINE void markUpdated() const {
-        m_observer.template markUpdated<Component>(*this);
+        (m_observer.template markUpdated<Component>(*this), ...);
     }
 
-    template<typename Component>
+    template<typename... Component>
     ECS_FORCEINLINE void clearUpdateTag() const {
-        m_observer.template clearUpdateTag<Component>(*this);
+        (m_observer.template clearUpdateTag<Component>(*this), ...);
     }
 
-    template<typename Component>
+    template<typename... Component>
     ECS_FORCEINLINE void erase() const {
-        return m_observer.template erase<Component>(*this);
+        (m_observer.template erase<Component>(*this), ...);
     }
 
     template<typename Component>
@@ -111,8 +113,8 @@ struct EntityIterator final {
     using iterator_category = std::bidirectional_iterator_tag;
     using value_type        = EntityWrapper<Observer>;
     using difference_type   = std::size_t;
-    using pointer           = value_type;
-    using reference         = value_type;
+    using pointer           = value_type*;
+    using reference         = value_type&;
 
     EntityIterator(EntityContainerIt container_iterator, const Observer& observer)
       : m_it(std::move(container_iterator)), m_observer(observer) {}
@@ -126,7 +128,7 @@ struct EntityIterator final {
     bool operator==(const EntityIterator& other) const noexcept { return m_it == other.m_it; };
     bool operator<(const EntityIterator& other) const noexcept { return m_it < other.m_it; };
 
-    reference operator*() const { return value_type(*m_it, m_observer); }
+    value_type operator*() const { return {*m_it, m_observer}; }
 
     EntityIterator& operator++() {
         ++m_it;

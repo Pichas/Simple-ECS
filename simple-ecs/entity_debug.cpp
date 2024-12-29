@@ -17,8 +17,8 @@ void EntityDebugSystem::setup(Registry& reg) { // NOLINT
       .createStorage()
       .addDebuger()
       .addCreateFunc()
+      .addEmplaceCallback([](Entity e, Name& c) { spdlog::debug("Entity {} ({}) was created", c.name.c_str(), e); })
       .addDestroyCallback([](Entity e, Name& c) { spdlog::debug("Entity {} ({}) was removed", c.name.c_str(), e); })
-      .addConstructCallback([](Entity e, Name& c) { spdlog::debug("Entity {} ({}) was created", c.name.c_str(), e); })
       .setSaveFunc([](const Name& comp) {
           std::vector<std::uint8_t>        temp;
           const std::vector<std::uint8_t>& size = serializer::serialize(comp.name.size());

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(SimpleECS VERSION 1.0.11 LANGUAGES CXX)
+project(SimpleECS VERSION 1.2.0 LANGUAGES CXX)
 
 option(ECS_FINAL "Final build without any debug info" OFF)
 option(ECS_ENABLE_IMGUI "Enable ImGui related code" OFF)
@@ -24,7 +24,6 @@ set(H_FILES
     simple-ecs/serializer.h
     simple-ecs/tools/sparse_set.h
     simple-ecs/storage.h
-    simple-ecs/tools/void_callback.h
     simple-ecs/utils.h
     simple-ecs/world.cpp
     simple-ecs/world.h
@@ -70,4 +69,9 @@ if(ECS_ENABLE_IMGUI)
             ImGui # EntityDebugSystem uses it
             ImPlot # EntityDebugSystem uses it
     )
+endif()
+
+if (${PROJECT_IS_TOP_LEVEL})
+    message("${PROJECT_NAME} example is enabled")
+    add_subdirectory(example)
 endif()
