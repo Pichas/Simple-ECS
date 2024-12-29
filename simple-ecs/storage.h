@@ -5,6 +5,7 @@
 #include "tools/sparse_set.h"
 
 #include <algorithm>
+#include <cstring>
 #include <span>
 
 

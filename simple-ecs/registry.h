@@ -146,14 +146,14 @@ struct Registry final : NoCopyNoMove {
     template<typename System>
     requires std::derived_from<System, BaseSystem>
     void removeSystem() {
-        auto system = m_systems.find(id<System>());
+        auto system = m_systems.find(ct::ID<System>);
         assert(system != m_systems.end() && "system is already unregistered");
 
         // stop system
-        m_cleanup_callbacks.emplace([system_ptr = system->second.get(), this] {
+        m_cleanup_callbacks.emplace([system = std::move(system), this] {
             spdlog::debug("remove: {}", ct::name_sv<System>);
-            system_ptr->stop(*this);
-            m_parallel_jobs.erase(system_ptr);
+            system->second.get()->stop(*this);
+            m_parallel_jobs.erase(ct::ID<System>);
             m_systems.erase(system);
         });
     }

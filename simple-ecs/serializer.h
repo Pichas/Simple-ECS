@@ -2,6 +2,7 @@
 
 #include "simple-ecs/world.h"
 #include <algorithm>
+#include <cstring>
 #include <type_traits>
 
 
