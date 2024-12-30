@@ -10,10 +10,7 @@ int main() {
 
     World w;
 
-    // tags
     ComponentRegistrant<Dead, Player, Boss>(w).createStorage();
-
-    // comps
     ComponentRegistrant<Damage, HP>(w).createStorage();
 
     auto* reg = w.getRegistry();

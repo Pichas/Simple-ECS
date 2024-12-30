@@ -20,10 +20,10 @@ private:
         using namespace std::chrono_literals;
         spdlog::warn("Hello from long task");
         spdlog::default_logger()->flush();
-        m_sync.test_and_set();
+        m_sync.store(true);
         m_sync.notify_all();
         return ECS_JOB_CONTINUE;
     }
 
-    std::atomic_flag m_sync;
+    std::atomic_bool m_sync;
 };
