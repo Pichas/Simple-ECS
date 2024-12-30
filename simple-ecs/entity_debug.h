@@ -148,14 +148,17 @@ struct EntityDebugSystem final : BaseSystem {
     // create a Component with custom function
     template<typename Component, string_literal Title, typename Callback>
     void registerAddComponent(Callback&& f) { // NOLINT
-        m_create_callbacks.emplace(Title.value,
-                                   [&world = m_world, f = std::forward<Callback>(f)](Entity e) { f(world, e); });
+        auto [_, was_added] = m_create_callbacks.try_emplace(
+          Title.value, [&world = m_world, f = std::forward<Callback>(f)](Entity e) { f(world, e); });
+        assert(was_added);
     }
 
     // create a Component with default ctor
     template<typename Component>
     void registerAddComponent() {
-        m_create_callbacks.emplace(ct::name<Component>, [&world = m_world](Entity e) { world.emplace<Component>(e); });
+        auto [_, was_added] = m_create_callbacks.try_emplace(
+          ct::name<Component>, [&world = m_world](Entity e) { world.emplace<Component>(e); });
+        assert(was_added);
     }
 
 private:

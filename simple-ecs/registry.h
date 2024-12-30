@@ -142,7 +142,8 @@ struct Registry final : NoCopyNoMove {
             system->setup(*this);
         });
 
-        m_systems.emplace(ct::ID<System>, std::move(system));
+        auto [_, was_added] = m_systems.try_emplace(ct::ID<System>, std::move(system));
+        assert(was_added);
     }
 
     template<typename System>
