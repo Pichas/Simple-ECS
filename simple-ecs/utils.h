@@ -10,7 +10,7 @@
 
 
 #if __clang__
-#define ECS_FORCEINLINE __attribute__((always_inline))
+#define ECS_FORCEINLINE
 #elif _MSC_VER
 #define __PRETTY_FUNCTION__ __FUNCSIG__ // NOLINT //-V2573
 #define ECS_FORCEINLINE __forceinline
@@ -22,7 +22,7 @@
 #define ECS_MACRO_CONCAT(x, y) ECS_CONCAT_IMPL(x, y)
 #define ECS_DEFINE_UNIQUE(name) ECS_MACRO_CONCAT(name, __COUNTER__)
 
-#if _DEBUG
+#if 1
 #define ECS_DEBUG_ONLY(...) __VA_ARGS__
 #define ECS_RELEASE_ONLY(...)
 #else

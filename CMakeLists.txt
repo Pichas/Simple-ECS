@@ -71,3 +71,5 @@ if(ECS_ENABLE_IMGUI)
             ImPlot # EntityDebugSystem uses it
     )
 endif()
+
+add_subdirectory(example)

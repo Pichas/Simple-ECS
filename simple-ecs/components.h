@@ -47,3 +47,9 @@ struct RemoveTag<Updated<Component>> {
 
 template<typename Component>
 using RemoveTag_t = typename RemoveTag<Component>::Type;
+
+
+template<typename... Component>
+struct Archetype : Component... {
+    using Components = Components<Component...>;
+};

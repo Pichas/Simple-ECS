@@ -22,11 +22,14 @@
 #define ECS_FUNCTION_ID(F) #F##_crc
 #endif
 
-#define ECS_REG_FUNC(REGISTRY, FUNC) REGISTRY.registerFunction(ECS_FUNCTION_ID(FUNC), &FUNC, this)
+// clang-format off
+#define ECS_REG_FUNC(REGISTRY, FUNC) REGISTRY.registerFunction(ECS_FUNCTION_ID(FUNC), &std::remove_cvref_t<decltype(*this)>::FUNC, this)
 #define ECS_REG_EXTERN_FUNC(REGISTRY, FUNC) REGISTRY.registerFunction(ECS_FUNCTION_ID(FUNC), &FUNC)
 #define ECS_UNREG_FUNC(REGISTRY, FUNC) REGISTRY.unregisterFunction(ECS_FUNCTION_ID(FUNC))
+// clang-format on
 
-#define ECS_JOB_RUN(REGISTRY, FUNC, cycle) REGISTRY.runParallelJob(&FUNC, this, cycle)
+#define ECS_JOB_RUN(REGISTRY, FUNC, cycle) \
+    REGISTRY.runParallelJob(&std::remove_cvref_t<decltype(*this)>::FUNC, this, cycle)
 #define ECS_JOB_CONTINUE true
 #define ECS_JOB_STOP false
 #define ECS_JOB bool
@@ -102,23 +105,22 @@ struct Registry final : NoCopyNoMove {
 
     template<typename System, typename Time>
     requires std::derived_from<System, BaseSystem>
-    void runParallelJob(bool (System::*func)(), System* obj, Time every) {
+    void runParallelJob(ECS_JOB (System::*func)(), System* obj, Time every) {
         using namespace std::literals;
 
         assert(every >= 100ms && "Doesn't support time less than 100ms");
         m_parallel_jobs[ct::ID<Component>].emplace_back(
-          [](const std::stop_token& stoken, bool (System::*function)(), System* obj, Time time) {
+          [](const std::stop_token& stoken, ECS_JOB (System::*function)(), System* obj, Time time) {
               spdlog::stopwatch sw;
 
               while (!stoken.stop_requested()) {
                   if (sw.elapsed() > time) {
                       sw.reset();
-                      if (!std::invoke(function, obj)) {
+                      if (std::invoke(function, obj) == ECS_JOB_STOP) {
                           return;
                       }
                   }
-
-                  std::this_thread::sleep_for(100ms);
+                  std::this_thread::sleep_for(time - sw);
               }
           },
           func,

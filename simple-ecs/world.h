@@ -39,6 +39,7 @@ struct World final : NoCopyNoMove {
     decltype(auto) begin() const noexcept { return m_entities.cbegin(); }
     decltype(auto) end() const noexcept { return m_entities.cend(); }
     decltype(auto) size() const noexcept { return m_entities.size(); }
+    decltype(auto) empty() const noexcept { return m_entities.empty(); }
 
     const std::vector<Entity>&              entities() const noexcept { return m_entities; }
     const std::map<std::string, Component>& registeredComponentNames() const noexcept { return m_component_name; }
@@ -237,11 +238,16 @@ struct World final : NoCopyNoMove {
         return entity;
     }
 
-    void destroy(Entity e) { m_entities_to_destroy.emplace_back(e); }
+    void destroy(Entity e) {
+        auto it = std::ranges::find(m_entities_to_destroy, e);
+        if (it == m_entities_to_destroy.end()) {
+            m_entities_to_destroy.emplace_back(e);
+        }
+    }
 
     void destroy(std::span<const Entity> entities) {
         for (auto entity : entities) {
-            m_entities_to_destroy.emplace_back(entity);
+            destroy(entity);
         }
     }
 

@@ -14,15 +14,15 @@ struct Storage final : SparseSet {
     Storage(const Storage&)                = delete;
     Storage(Storage&&) noexcept            = default;
     Storage& operator=(const Storage&)     = delete;
-    Storage& operator=(Storage&&) noexcept = delete;
+    Storage& operator=(Storage&&) noexcept = default;
     ~Storage() override {
         // clean memory to avoid memory leak report
-        while (!m_ents.empty()) {
-            remove(m_ents.back());
+        while (!m_entities.empty()) {
+            remove(m_entities.back());
         }
     };
 
-    const std::vector<Entity>& entities() const noexcept { return m_ents; }
+    const std::vector<Entity>& entities() const noexcept { return m_entities; }
 
     ECS_DEBUG_ONLY(IDType id() const noexcept { return m_id; })
     ECS_DEBUG_ONLY(std::string name() const noexcept { return m_string_name; })
@@ -39,6 +39,7 @@ struct Storage final : SparseSet {
         ECS_DEBUG_ONLY(m_id = ct::ID<Component>);
 
         m_component_size = sizeof(Component);
+        m_components_memory.reserve(1024ull * 1024 * m_component_size);
 
         // don't use [this] here, because Storage will be moved in the memory
         m_remove_callback = +[](Storage* ptr, Entity e) { ptr->erase<Component>(e); };
@@ -72,11 +73,11 @@ struct Storage final : SparseSet {
                 m_components_memory.resize(m_components_memory.size() + m_component_size);
                 std::byte* ptr      = &m_components_memory[m_components_memory.size() - m_component_size];
                 Component* comp_ptr = std::launder(reinterpret_cast<Component*>(ptr));
-                std::construct_at(comp_ptr, std::decay_t<Component>(std::forward<Args>(args)...));
+                std::construct_at(comp_ptr, std::forward<Args>(args)...);
             }
 
-            auto lower = std::ranges::lower_bound(m_ents, e);
-            m_ents.insert(lower, e);
+            auto lower = std::ranges::lower_bound(m_entities, e);
+            m_entities.insert(lower, e);
 
             for (const auto& function : m_on_construct_callbacks) { // do something after construct
                 if constexpr (std::is_empty_v<Component>) {
@@ -96,8 +97,8 @@ struct Storage final : SparseSet {
         if (has(e)) {
             eraseOne<Component>(e);
 
-            auto lower = std::ranges::lower_bound(m_ents, e);
-            m_ents.erase(lower);
+            auto lower = std::ranges::lower_bound(m_entities, e);
+            m_entities.erase(lower);
         }
     }
 
@@ -116,9 +117,9 @@ struct Storage final : SparseSet {
         }
 
         std::vector<Entity> result;
-        result.reserve(m_ents.size());
-        std::ranges::set_difference(m_ents, ents, std::back_inserter(result));
-        m_ents = std::move(result);
+        result.reserve(m_entities.size());
+        std::ranges::set_difference(m_entities, ents, std::back_inserter(result));
+        m_entities = std::move(result);
     }
 
     template<typename Component>
@@ -162,7 +163,9 @@ private:
             std::destroy_at(std::launder(comp));
 
             std::byte* last = &m_components_memory[m_components_memory.size() - m_component_size];
-            std::memcpy(comp, last, m_component_size);
+            if (static_cast<void*>(comp) != static_cast<void*>(last)) {
+                std::memcpy(comp, last, m_component_size);
+            }
             m_components_memory.resize(m_components_memory.size() - m_component_size);
         }
 
@@ -171,7 +174,7 @@ private:
 
 private:
     std::size_t                                m_component_size = 0;
-    std::vector<Entity>                        m_ents;
+    std::vector<Entity>                        m_entities;
     std::vector<std::byte>                     m_components_memory;
     std::vector<std::unique_ptr<VoidCallback>> m_on_destroy_callbacks;
     std::vector<std::unique_ptr<VoidCallback>> m_on_construct_callbacks;
