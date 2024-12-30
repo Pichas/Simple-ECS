@@ -39,9 +39,11 @@ struct EntityWrapper final {
     ~EntityWrapper() noexcept                          = default;
 
     operator Entity() const noexcept { return m_entity; }
-    decltype(auto) asTuple() { return detail::ComponentsTuple<Observer, Require>::create(m_observer, m_entity); }
+    decltype(auto) asTuple() {
+        return detail::ComponentsTuple<Observer, RemoveEmpty_t<Require>>::create(m_observer, m_entity);
+    }
     decltype(auto) asTuple() const {
-        return detail::ComponentsTuple<Observer, Require>::createConst(m_observer, m_entity);
+        return detail::ComponentsTuple<Observer, RemoveEmpty_t<Require>>::createConst(m_observer, m_entity);
     }
     ECS_FORCEINLINE bool isAlive() const noexcept { return m_observer.isAlive(*this); }
     ECS_FORCEINLINE void destroy() const { m_observer.destroy(*this); }

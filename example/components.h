@@ -1,9 +1,13 @@
 #pragma once
 
 #include "simple-ecs/components.h"
-#include <string>
+#include "simple-ecs/entity_debug.h"
 
 struct Dead {};
+
+struct Player {};
+
+struct Boss {};
 
 struct Damage {
     int damage = 0;
@@ -13,12 +17,13 @@ struct HP {
     int hp = 0;
 };
 
-struct PlayerName {
-    std::string name;
+
+using PlayerArchetype = Archetype<Name, HP, Damage, Player>;
+struct PlayerType : PlayerArchetype {
+    PlayerType() : PlayerArchetype({"Player"}, {100}, {3}) {};
 };
 
-using PlayerArchetype = Archetype<HP, PlayerName>;
-
-struct PlayerType : PlayerArchetype {
-    PlayerType() : PlayerArchetype(HP(100), PlayerName("Test")) {};
+using BossArchetype = Archetype<Name, HP, Damage, Boss>;
+struct BossType : BossArchetype {
+    BossType() : BossArchetype({"Boss"}, {1000}, {10}) {};
 };

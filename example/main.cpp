@@ -1,61 +1,55 @@
 #include "components.h"
 #include <simple-ecs/ECS.h>
+#include "battle_system.h"
 #include "hp_system.h"
 #include <ct/random.h>
-#include <iostream>
 
 
 int main() {
+    spdlog::default_logger()->set_level(spdlog::level::debug);
 
-    // // std::vector<DEBUG_CMP> v;
-    // // v.resize(1);
-    // // v.resize(5);
-
-    // // return 0;
-    // // std::vector<std::byte> mem;
-    // // mem.resize(sizeof(std::string));
-    // void* mem = std::malloc(sizeof(DEBUG_CMP));
-    // // auto* p = reinterpret_cast<std::string*>(mem.data());
-
-    // // char* mem[sizeof(std::string)];
-    // auto* p = reinterpret_cast<DEBUG_CMP*>(mem);
-    // spdlog::info("{:x}", (size_t)std::launder(p));
-
-    // std::construct_at(std::launder(p), 12);
-
-
-    // void* mem2 = std::realloc(mem, sizeof(DEBUG_CMP) * 2);
-    // // std::memmove(mem2, mem, sizeof(std::string));
-    // p = reinterpret_cast<DEBUG_CMP*>(mem2);
-
-    // // mem.resize(sizeof(std::string) * 2);
-    // // p = reinterpret_cast<std::string*>(mem);
-
-    // spdlog::info("{:x}", (size_t)std::launder(p));
-    // // spdlog::info("{}", std::launder(p)->c_str());
-    // std::destroy_at(std::launder(p));
-    // std::free(mem2);
-
-    // return 0;
     World w;
 
-    ComponentRegistrant<Dead, Damage, PlayerName, HP>(w).createStorage();
+    // tags
+    ComponentRegistrant<Dead, Player, Boss>(w).createStorage();
+
+    // comps
+    ComponentRegistrant<Damage, HP>(w).createStorage();
 
     auto* reg = w.getRegistry();
     reg->addSystem<HPSystem>();
+    reg->addSystem<BattleSystem>();
     reg->initNewSystems();
 
-    auto e = w.create();
-    w.emplace<HP>(e, 2);
 
-    while (!w.empty()) {
+    OBSERVER_EMPTY observer = Observer(w);
+
+    for (int i = 0; i < 6; i++) {
+        PlayerType instance;
+        instance.name = "Player " + std::to_string(i);
+        observer.create(std::move(instance));
+    }
+
+    for (int i = 0; i < 1; i++) {
+        BossType instance;
+        instance.name = "Boss " + std::to_string(i);
+        observer.create(std::move(instance));
+    }
+
+
+    while (true) {
         reg->exec();
-        if (!dice(0, 100)) {
-            if (w.isAlive(e)) {
-                w.emplace<Damage>(e, 1);
-            }
+
+        spdlog::info("--- Players {}, Bosses {} ---", w.size<Player>(), w.size<Boss>());
+        if (w.empty<Player>() || w.empty<Boss>()) {
+            break;
         }
     }
+
+    // to check that all works fine
+    reg->removeSystem<HPSystem>();
+    reg->removeSystem<BattleSystem>();
+    reg->exec();
 
     return 0;
 }

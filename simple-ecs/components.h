@@ -1,6 +1,7 @@
 #pragma once
 
 #include "simple-ecs/entity.h"
+#include <type_traits>
 
 
 using Component = IDType;
@@ -53,3 +54,28 @@ template<typename... Component>
 struct Archetype : Component... {
     using Components = Components<Component...>;
 };
+
+
+template<typename...>
+struct RemoveEmpty;
+
+template<typename Component>
+requires(!std::is_empty_v<Component>)
+struct RemoveEmpty<Component> {
+    using Type = Components<Component>;
+};
+
+
+template<typename Component>
+requires(std::is_empty_v<Component>)
+struct RemoveEmpty<Component> {
+    using Type = Components<>;
+};
+
+template<typename... Component>
+struct RemoveEmpty<Components<Component...>> : RemoveEmpty<Component>... {
+    using Type = typename Components<typename RemoveEmpty<Component>::Type...>::Type;
+};
+
+template<typename Component>
+using RemoveEmpty_t = typename RemoveEmpty<typename Component::Type>::Type;

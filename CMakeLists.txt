@@ -24,7 +24,6 @@ set(H_FILES
     simple-ecs/serializer.h
     simple-ecs/tools/sparse_set.h
     simple-ecs/storage.h
-    simple-ecs/tools/void_callback.h
     simple-ecs/utils.h
     simple-ecs/world.cpp
     simple-ecs/world.h
@@ -72,4 +71,7 @@ if(ECS_ENABLE_IMGUI)
     )
 endif()
 
-add_subdirectory(example)
+if (${PROJECT_IS_TOP_LEVEL})
+    message("${PROJECT_NAME} example is enabled")
+    add_subdirectory(example)
+endif()

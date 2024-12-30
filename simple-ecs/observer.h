@@ -6,6 +6,7 @@
 
 
 #define OBSERVER(Filter) const Observer<Filter>&
+#define OBSERVER_EMPTY const Observer<>&
 
 template<typename Filter>
 struct Observer;
@@ -19,17 +20,27 @@ struct ArchetypeConstructor;
 template<typename... Component>
 struct ArchetypeConstructor<Components<Component...>> {
     template<typename Filter, typename Type>
-    static void fill(const Observer<Filter>& observer, Entity e, Type obj) {
-        static_assert(std::derived_from<Type, Archetype<Component...>>);
-        (observer.emplace(e, Component{static_cast<Component>(obj)}), ...);
+    static void fill(const Observer<Filter>& observer, Entity e, Type&& obj) {
+        static_assert(std::derived_from<std::remove_cvref_t<Type>, Archetype<Component...>>);
+
+        auto emplace =
+          []<typename OneComponent, typename ObjType>(const Observer<Filter>& observer, Entity e, ObjType&& obj) {
+              if constexpr (!std::is_empty_v<OneComponent>) {
+                  observer.emplace(e, OneComponent{static_cast<OneComponent>(std::forward<ObjType>(obj))});
+              } else {
+                  observer.template emplace<OneComponent>(e);
+              }
+          };
+        (emplace.template operator()<Component>(observer, e, std::forward<Type>(obj)), ...);
     };
 };
 
 template<typename Archetype>
 struct ArchetypeConstructor<Archetype> {
     template<typename Filter>
-    static void fill(const Observer<Filter>& observer, Entity e) {
-        detail::ArchetypeConstructor<typename Archetype::Components>::fill(observer, e, Archetype{});
+    static void fill(const Observer<Filter>& observer, Entity e, Archetype&& obj) {
+        detail::ArchetypeConstructor<typename std::remove_cvref_t<Archetype>::Components>::fill(
+          observer, e, std::forward<Archetype>(obj));
     };
 };
 
@@ -59,7 +70,7 @@ struct Observer final : NoCopyNoMove {
     operator std::span<const Entity>() const noexcept { return {m_entities.cbegin(), m_entities.cend()}; }
 
     ECS_FORCEINLINE decltype(auto) operator[](std::size_t index) const {
-        assert(index && index < m_entities.size() && "Out of bound");
+        assert(index >= 0 && index < m_entities.size() && "Out of bound");
         return EntityWrapper(m_entities[index], *this);
     }
 
@@ -70,9 +81,9 @@ struct Observer final : NoCopyNoMove {
     ECS_FORCEINLINE decltype(auto) create() const { return EntityWrapper(m_world.create(), *this); }
 
     template<typename Archetype>
-    ECS_FORCEINLINE decltype(auto) create() const {
+    ECS_FORCEINLINE decltype(auto) create(Archetype&& obj = {}) const {
         Entity e = m_world.create();
-        detail::ArchetypeConstructor<Archetype>::fill(*this, e);
+        detail::ArchetypeConstructor<Archetype>::fill(*this, e, std::forward<Archetype>(obj));
         return EntityWrapper(e, *this);
     }
 

@@ -33,6 +33,6 @@ target_include_directories(${PROJECT_NAME}
 set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 if(LINUX)
-    target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
-    target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
+    target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address -fsanitize=undefined)
+    target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address -fsanitize=undefined)
 endif()

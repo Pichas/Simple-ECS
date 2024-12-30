@@ -120,7 +120,7 @@ struct Registry final : NoCopyNoMove {
                           return;
                       }
                   }
-                  std::this_thread::sleep_for(time - sw);
+                  std::this_thread::sleep_for(time - sw.elapsed());
               }
           },
           func,

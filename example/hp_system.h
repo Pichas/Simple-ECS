@@ -6,13 +6,24 @@
 
 struct HPSystem : BaseSystem {
     void setup(Registry&);
+    void stop(Registry& /*unused*/) override;
 
 private:
-    using ApplyDamageFilter      = Filter<Require<HP, Damage>, Exclude<Dead>>;
+    using CheckHPFilter          = Filter<Require<HP>, Exclude<Dead>>;
     using RemoveDeadEntityFilter = Filter<Require<Dead>>;
-    using GetNewFilter           = Filter<Require<PlayerArchetype>>;
 
-    void applyDamage(OBSERVER(ApplyDamageFilter));
+    void checkHP(OBSERVER(CheckHPFilter));
     void removeDeadEntity(OBSERVER(RemoveDeadEntityFilter));
-    void getNewEntity(OBSERVER(GetNewFilter));
+
+private:
+    ECS_JOB longTaskExample() {
+        using namespace std::chrono_literals;
+        spdlog::warn("Hello from long task");
+        spdlog::default_logger()->flush();
+        m_sync.test_and_set();
+        m_sync.notify_all();
+        return ECS_JOB_CONTINUE;
+    }
+
+    std::atomic_flag m_sync;
 };
