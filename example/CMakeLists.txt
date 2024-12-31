@@ -3,6 +3,11 @@ project(Example LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Make sure DLL and EXE targets go to the same directory.
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib) # Output directory for static lib (.LIB)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) # Output directory for shared lib (.DLL)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) # Output directory for executables (.EXE)
+
 file(GLOB_RECURSE GAME_HEADERS CONFIGURE_DEPENDS "*.h")
 file(GLOB_RECURSE GAME_SRC CONFIGURE_DEPENDS "*.cpp")
 
