@@ -102,6 +102,19 @@ void MySystem::stop(Registry& reg) {
 }
 ```
 
+Or you can register your function from outside.
+
+```cpp
+auto& reg = *world.getRegistry();
+
+auto* my_system = reg.addSystem<MySystem>();
+ECS_REG_FUNC_SYS(reg, MySystem::updateTransform, my_system);
+ECS_REG_FUNC_SYS(reg, MySystem::updateCameraTransform, my_system);
+ECS_REG_FUNC_SYS(reg, MySystem::update, my_system);
+
+reg.initNewSystems();
+```
+
 ### Components
 
 You can use any type as component, but you need to register it before. To do this we have a `ComponentRegistrant` helper class. You can check `entity_debug.cpp` for examples.

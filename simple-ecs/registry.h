@@ -24,6 +24,7 @@
 
 // clang-format off
 #define ECS_REG_FUNC(REGISTRY, FUNC) REGISTRY.registerFunction(ECS_FUNCTION_ID(FUNC), &FUNC, this)
+#define ECS_REG_FUNC_SYS(REGISTRY, FUNC, SYSTEM) REGISTRY.registerFunction(ECS_FUNCTION_ID(FUNC), &FUNC, SYSTEM)
 #define ECS_REG_EXTERN_FUNC(REGISTRY, FUNC) REGISTRY.registerFunction(ECS_FUNCTION_ID(FUNC), &FUNC)
 #define ECS_UNREG_FUNC(REGISTRY, FUNC) REGISTRY.unregisterFunction(ECS_FUNCTION_ID(FUNC))
 // clang-format on
@@ -132,18 +133,20 @@ struct Registry final : NoCopyNoMove {
 
     template<typename System, typename... Args>
     requires std::derived_from<System, BaseSystem>
-    void addSystem(Args&&... args) {
+    System* addSystem(Args&&... args) {
         assert(!m_systems.contains(ct::ID<System>) && "system is already registered");
         spdlog::debug("register: {}", ct::name_sv<System>);
 
-        auto system = std::make_unique<System>(std::forward<Args>(args)...);
-        m_init_callbacks.emplace([system = system.get(), this]() {
+        auto system     = std::make_unique<System>(std::forward<Args>(args)...);
+        auto system_ptr = system.get();
+        m_init_callbacks.emplace([system_ptr, this]() {
             spdlog::debug("init: {}", ct::name_sv<System>);
-            system->setup(*this);
+            system_ptr->setup(*this);
         });
 
-        auto [_, was_added] = m_systems.try_emplace(ct::ID<System>, std::move(system));
+        auto [it, was_added] = m_systems.try_emplace(ct::ID<System>, std::move(system));
         assert(was_added);
+        return system_ptr;
     }
 
     template<typename System>
