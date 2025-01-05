@@ -22,7 +22,7 @@
 #define ECS_MACRO_CONCAT(x, y) ECS_CONCAT_IMPL(x, y)
 #define ECS_DEFINE_UNIQUE(name) ECS_MACRO_CONCAT(name, __COUNTER__)
 
-#if 1
+#ifdef _DEBUG
 #define ECS_DEBUG_ONLY(...) __VA_ARGS__
 #define ECS_RELEASE_ONLY(...)
 #else
