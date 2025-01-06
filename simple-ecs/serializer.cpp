@@ -26,6 +26,8 @@ static bool checkSaveLoadCallbacks(
 Serializer::Serializer(World& world) : m_world(world) {};
 
 std::vector<std::uint8_t> Serializer::save() {
+    ECS_PROFILER(ZoneScoped);
+
     assert(detail::serializer::checkSaveLoadCallbacks(m_save_functions, m_load_functions) &&
            "For each save function, you should have one load function");
 
@@ -46,6 +48,8 @@ std::vector<std::uint8_t> Serializer::save() {
 
 
 void Serializer::load(std::span<const std::uint8_t> data) {
+    ECS_PROFILER(ZoneScoped);
+
     assert(detail::serializer::checkSaveLoadCallbacks(m_save_functions, m_load_functions) &&
            "For each save function, you should have one load function");
 

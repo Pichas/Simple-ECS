@@ -2,6 +2,12 @@
 set(CMAKE_FOLDER_BACKUP ${CMAKE_FOLDER})
 set(CMAKE_FOLDER External)
 
+
+if(ECS_ENABLE_PROFILER)
+	add_subdirectory(TracyClient)
+endif()
+
+
 file(GLOB V_GLOB LIST_DIRECTORIES true "*_auto")
 foreach(item ${V_GLOB})
     if(IS_DIRECTORY ${item})

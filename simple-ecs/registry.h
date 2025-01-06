@@ -39,6 +39,8 @@
 struct Registry final : NoCopyNoMove {
     Registry(World& world) : m_world(world), m_frame_ready(false), m_serializer(m_world) {}
     ~Registry() {
+        ECS_PROFILER(ZoneScoped);
+
         for (const auto& system : std::views::values(m_systems)) {
             system->stop(*this);
         }
@@ -69,6 +71,8 @@ struct Registry final : NoCopyNoMove {
     template<typename System, typename... Filters>
     requires(sizeof...(Filters) > 0 && std::derived_from<System, BaseSystem>)
     void registerFunction(std::string_view fname, void (System::*f)(OBSERVER(Filters)...), System* obj) {
+        ECS_PROFILER(ZoneScoped);
+
         bool exists = std::ranges::find(m_functions, fname) != m_functions.end();
         if (exists) {
             spdlog::critical("{} function is already registered", fname);
@@ -82,6 +86,8 @@ struct Registry final : NoCopyNoMove {
     template<typename... Filters>
     requires(sizeof...(Filters) > 0)
     void registerFunction(std::string_view fname, void (*f)(OBSERVER(Filters)...)) {
+        ECS_PROFILER(ZoneScoped);
+
         bool exists = std::ranges::find(m_functions, fname) != m_functions.end();
         if (exists) {
             spdlog::critical("{} function is already registered", fname);
@@ -93,6 +99,8 @@ struct Registry final : NoCopyNoMove {
     }
 
     void unregisterFunction(std::string_view fname) {
+        ECS_PROFILER(ZoneScoped);
+
         bool exists = std::ranges::find(m_functions, fname) != m_functions.end();
         if (!exists) {
             spdlog::critical("{} function is already unregistered", fname);
@@ -107,14 +115,20 @@ struct Registry final : NoCopyNoMove {
     template<typename System, typename Time>
     requires std::derived_from<System, BaseSystem>
     void runParallelJob(ECS_JOB (System::*func)(), System* obj, Time every) {
+        ECS_PROFILER(ZoneScoped);
+
         using namespace std::literals;
 
         assert(every >= 100ms && "Doesn't support time less than 100ms");
         m_parallel_jobs[ct::ID<Component>].emplace_back(
           [](const std::stop_token& stoken, ECS_JOB (System::*function)(), System* obj, Time time) {
+              ECS_PROFILER(ZoneScoped);
+
               spdlog::stopwatch sw;
 
               while (!stoken.stop_requested()) {
+                  ECS_PROFILER(ZoneScoped);
+
                   if (sw.elapsed() > time) {
                       sw.reset();
                       if (std::invoke(function, obj) == ECS_JOB_STOP) {
@@ -134,6 +148,8 @@ struct Registry final : NoCopyNoMove {
     template<typename System, typename... Args>
     requires std::derived_from<System, BaseSystem>
     System* addSystem(Args&&... args) {
+        ECS_PROFILER(ZoneScoped);
+
         assert(!m_systems.contains(ct::ID<System>) && "system is already registered");
         spdlog::debug("register: {}", ct::name_sv<System>);
 
@@ -152,6 +168,8 @@ struct Registry final : NoCopyNoMove {
     template<typename System>
     requires std::derived_from<System, BaseSystem>
     void removeSystem() {
+        ECS_PROFILER(ZoneScoped);
+
         auto system = m_systems.find(ct::ID<System>);
         assert(system != m_systems.end() && "system is already unregistered");
 
@@ -167,6 +185,8 @@ struct Registry final : NoCopyNoMove {
     template<typename System>
     requires std::derived_from<System, BaseSystem>
     std::remove_cvref_t<System>* getSystem() noexcept {
+        ECS_PROFILER(ZoneScoped);
+
         if (auto system = m_systems.find(ct::ID<System>); system != m_systems.end()) {
             return static_cast<System*>(system->second.get());
         }
@@ -174,6 +194,8 @@ struct Registry final : NoCopyNoMove {
     }
 
     void initNewSystems() {
+        ECS_PROFILER(ZoneScoped);
+
         while (!m_init_callbacks.empty()) {
             // can be called recursively, so move and call
             auto init = std::move(m_init_callbacks.front());
@@ -183,16 +205,26 @@ struct Registry final : NoCopyNoMove {
     }
 
     void syncWithRender() noexcept {
+        ECS_PROFILER(ZoneScoped);
+
         while (m_frame_ready.load(std::memory_order_relaxed)) {}
     }
 
-    void frameSynchronized() noexcept { m_frame_ready.store(false, std::memory_order_relaxed); }
+    void frameSynchronized() noexcept {
+        ECS_PROFILER(ZoneScoped);
+
+        m_frame_ready.store(false, std::memory_order_relaxed);
+    }
 
     void waitFrame() noexcept {
+        ECS_PROFILER(ZoneScoped);
+
         while (!m_frame_ready.load(std::memory_order_relaxed)) {}
     }
 
     void exec() noexcept {
+        ECS_PROFILER(ZoneScoped);
+
         assert(m_init_callbacks.empty() && "all systems must be initialized");
 
         for (const auto& function : m_functions) {
@@ -200,7 +232,8 @@ struct Registry final : NoCopyNoMove {
         }
 
         cleanup();
-        m_world.flush(); // destroy all removed entities at the end of the frame
+        m_world.flush();    // destroy all removed entities at the end of the frame
+        m_world.optimise(); // make storage optimisations
 
         m_frame_ready.store(true, std::memory_order_relaxed);
     }
@@ -222,11 +255,11 @@ struct Registry final : NoCopyNoMove {
 
 private:
     struct Function final {
-        Function(Function&& other) noexcept                 = default;
-        Function(const Function& other) noexcept            = delete;
-        Function& operator=(Function&& other) noexcept      = default;
-        Function& operator=(const Function& other) noexcept = delete;
-        ~Function() noexcept                                = default;
+        Function(const Function& other)                = delete;
+        Function(Function&& other) noexcept            = default;
+        Function& operator=(const Function& other)     = delete;
+        Function& operator=(Function&& other) noexcept = default;
+        ~Function() noexcept                           = default;
 
         template<typename System, typename... Filters>
         Function(ECS_FINAL_SWITCH(std::uint32_t, std::string_view) id, //
@@ -242,6 +275,8 @@ private:
           : m_function([f, &world] { std::invoke(f, Observer<Filters>(world)...); }), m_id(id) {}
 
         void operator()() const {
+            ECS_PROFILER(ZoneScoped);
+
             ECS_NOT_FINAL_ONLY(spdlog::stopwatch sw);
             m_function();
             ECS_NOT_FINAL_ONLY(m_time = sw.elapsed());
@@ -262,6 +297,8 @@ private:
     };
 
     void cleanup() noexcept {
+        ECS_PROFILER(ZoneScoped);
+
         while (!m_cleanup_callbacks.empty()) {
             auto func = std::move(m_cleanup_callbacks.front());
             m_cleanup_callbacks.pop();

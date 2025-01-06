@@ -35,9 +35,9 @@ struct ScrollingBuffer : public NoCopyNoMove {
 
 template<typename Component>
 requires(std::is_empty_v<Component>)
-void debug(World& w, Entity e) {
-    if (w.has<Component>(e)) {
+void debug(World& w, Entity e) { // NOLINT
 #ifdef ECS_ENABLE_IMGUI
+    if (w.has<Component>(e)) {
         ImGui::PushID(ct::name<Component>.data());
         ImGui::Text("%s", ct::name<Component>.c_str());
         ImGui::SameLine();
@@ -45,8 +45,8 @@ void debug(World& w, Entity e) {
             w.erase<Component>(e);
         }
         ImGui::PopID();
-#endif
     }
+#endif
 }
 
 // create a new specialization to debug component
@@ -79,7 +79,12 @@ struct EntityDebugSystem final : BaseSystem {
     template<typename Component>
     requires(std::is_empty_v<Component>)
     void registerDebugComponent() {
-        m_debug_callbacks.emplace_back([&world = m_world](Entity e) { debug<Component>(world, e); });
+        ECS_PROFILER(ZoneScoped);
+
+        m_debug_callbacks.emplace_back([&world = m_world](Entity e) {
+            ECS_PROFILER(ZoneScoped);
+            debug<Component>(world, e);
+        });
     }
 
     // debug function from T
@@ -87,11 +92,15 @@ struct EntityDebugSystem final : BaseSystem {
     requires(!std::is_empty_v<Component> &&
              std::is_invocable_r_v<void, decltype(&debug<Component>), Component&, Entity, bool&>)
     void registerDebugComponent() {
-        m_debug_callbacks.emplace_back([&world = m_world](Entity e) {
+        ECS_PROFILER(ZoneScoped);
+
+        m_debug_callbacks.emplace_back([&world = m_world](Entity e) { // NOLINT
+            ECS_PROFILER(ZoneScoped);
+
+#ifdef ECS_ENABLE_IMGUI
             Component* c     = world.tryGet<Component>(e);
             bool       state = true;
 
-#ifdef ECS_ENABLE_IMGUI
             if (c && ImGui::CollapsingHeader(ct::name<Component>.c_str(), &state)) {
                 ImGui::PushID(c);
                 ImGui::Indent();
@@ -106,11 +115,11 @@ struct EntityDebugSystem final : BaseSystem {
                 ImGui::Unindent();
                 ImGui::PopID();
             }
-#endif
 
             if (!state) { //-V547
                 world.erase<Component>(e);
             }
+#endif
         });
     }
 
@@ -118,44 +127,53 @@ struct EntityDebugSystem final : BaseSystem {
     template<typename Component, string_literal Title, typename Callback>
     requires(!std::is_empty_v<Component> && std::is_invocable_r_v<void, Callback, Entity, Component*, bool&>)
     void registerDebugComponent(Callback&& callback) { // NOLINT
-        m_debug_callbacks.emplace_back([&world = m_world, callback = std::forward<Callback>(callback)](Entity e) {
-            Component* c     = world.tryGet<Component>(e);
-            bool       state = true;
+        ECS_PROFILER(ZoneScoped);
+
+        m_debug_callbacks.emplace_back(
+          [&world = m_world, callback = std::forward<Callback>(callback)](Entity e) { // NOLINT
+              ECS_PROFILER(ZoneScoped);
 
 #ifdef ECS_ENABLE_IMGUI
-            if (c && ImGui::CollapsingHeader(Title.value, &state)) {
-                ImGui::PushID(c);
-                ImGui::Indent();
+              Component* c     = world.tryGet<Component>(e);
+              bool       state = true;
 
-                bool update = false;
-                callback(e, c, update);
-                if (update) {
-                    world.emplace<Updated<Component>>(e);
-                }
+              if (c && ImGui::CollapsingHeader(Title.value, &state)) {
+                  ImGui::PushID(c);
+                  ImGui::Indent();
 
-                ImGui::Separator();
-                ImGui::Unindent();
-                ImGui::PopID();
-            }
+                  bool update = false;
+                  callback(e, c, update);
+                  if (update) {
+                      world.emplace<Updated<Component>>(e);
+                  }
+
+                  ImGui::Separator();
+                  ImGui::Unindent();
+                  ImGui::PopID();
+              }
+
+              if (!state) { //-V547
+                  world.erase<Component>(e);
+              }
 #endif
-
-            if (!state) { //-V547
-                world.erase<Component>(e);
-            }
-        });
+          });
     }
 
     // create a Component with custom function
     template<typename Component, string_literal Title, typename Callback>
     void registerAddComponent(Callback&& f) { // NOLINT
+        ECS_PROFILER(ZoneScoped);
+
         auto [_, was_added] = m_create_callbacks.try_emplace(
-          Title.value, [&world = m_world, f = std::forward<Callback>(f)](Entity e) { f(world, e); });
+          Title, [&world = m_world, f = std::forward<Callback>(f)](Entity e) { std::invoke(f, world, e); });
         assert(was_added);
     }
 
     // create a Component with default ctor
     template<typename Component>
     void registerAddComponent() {
+        ECS_PROFILER(ZoneScoped);
+
         auto [_, was_added] = m_create_callbacks.try_emplace(
           ct::name<Component>, [&world = m_world](Entity e) { world.emplace<Component>(e); });
         assert(was_added);

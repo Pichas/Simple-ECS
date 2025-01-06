@@ -1,6 +1,7 @@
 #pragma once
 
 #include "simple-ecs/entity.h"
+#include "simple-ecs/tools/profiler.h" // IWYU pragma: export
 #include "ct/names.h"
 
 #include <spdlog/spdlog.h>

@@ -53,6 +53,8 @@ struct Storage final : StorageBase {
     Storage& operator=(const Storage&)     = delete;
     Storage& operator=(Storage&&) noexcept = default;
     ~Storage() override {
+        ECS_PROFILER(ZoneScoped);
+
         // clean memory to avoid memory leak report
         while (!m_entities.empty()) {
             erase(m_entities.back());
@@ -67,6 +69,8 @@ struct Storage final : StorageBase {
     template<typename... Args>
     requires std::is_constructible_v<Component, Args...>
     ECS_FORCEINLINE void emplace(Entity e, Args&&... args) {
+        ECS_PROFILER(ZoneScoped);
+
         if (SparseSet::emplace(e)) {
             if constexpr (!std::is_empty_v<Component>) {
                 m_components.emplace_back(std::forward<Args>(args)...);
@@ -86,6 +90,8 @@ struct Storage final : StorageBase {
     }
 
     ECS_FORCEINLINE void erase(Entity e) {
+        ECS_PROFILER(ZoneScoped);
+
         if (has(e)) {
             eraseOne(e);
 
@@ -95,6 +101,8 @@ struct Storage final : StorageBase {
     }
 
     ECS_FORCEINLINE void erase(std::span<const Entity> ents) {
+        ECS_PROFILER(ZoneScoped);
+
         if (ents.empty()) {
             return;
         }
@@ -116,6 +124,8 @@ struct Storage final : StorageBase {
     [[nodiscard]] ECS_FORCEINLINE Component& get(Entity e) noexcept
     requires(!std::is_empty_v<Component>)
     {
+        ECS_PROFILER(ZoneScoped);
+
         assert(has(e) && "Cannot get a component which an entity does not have");
         return m_components[m_sparse[e]];
     }
@@ -124,6 +134,8 @@ struct Storage final : StorageBase {
     [[nodiscard]] ECS_FORCEINLINE Component* tryGet(Entity e) noexcept
     requires(!std::is_empty_v<Component>)
     {
+        ECS_PROFILER(ZoneScoped);
+
         if (has(e)) {
             return &m_components[m_sparse[e]];
         }
@@ -131,6 +143,8 @@ struct Storage final : StorageBase {
     }
 
     bool optimise() override {
+        ECS_PROFILER(ZoneScoped);
+
         if constexpr (std::is_empty_v<Component>) {
             return true;
         } else {
@@ -155,6 +169,8 @@ struct Storage final : StorageBase {
 
 private:
     ECS_FORCEINLINE void eraseOne(Entity e) {
+        ECS_PROFILER(ZoneScoped);
+
         for (const auto& function : m_on_destroy_callbacks) { // do something before remove
             if constexpr (std::is_empty_v<Component>) {
                 std::invoke(function, e);

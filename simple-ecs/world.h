@@ -47,6 +47,8 @@ struct World final : NoCopyNoMove {
 
     template<typename Component>
     void addEmplaceCallback(Storage<Component>::Callback&& f) {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
         storage->addEmplaceCallback(std::move(f));
@@ -54,6 +56,8 @@ struct World final : NoCopyNoMove {
 
     template<typename Component>
     void addDestroyCallback(Storage<Component>::Callback&& f) {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
         storage->addDestroyCallback(std::move(f));
@@ -61,6 +65,8 @@ struct World final : NoCopyNoMove {
 
     template<typename Component>
     decltype(auto) size() const noexcept {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
         return storage->size();
@@ -68,6 +74,8 @@ struct World final : NoCopyNoMove {
 
     template<typename Component>
     decltype(auto) empty() const noexcept {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
         return storage->empty();
@@ -76,6 +84,8 @@ struct World final : NoCopyNoMove {
 
     template<typename Component>
     void createStorage() {
+        ECS_PROFILER(ZoneScoped);
+
         auto add_storage = [this]<typename T>() {
             // generate runtime ID for components.
             std::ignore = detail::sequenceID<T>();
@@ -92,6 +102,8 @@ struct World final : NoCopyNoMove {
 
     template<typename Component>
     ECS_FORCEINLINE bool has(Entity e) noexcept {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
@@ -101,6 +113,8 @@ struct World final : NoCopyNoMove {
     template<typename Component, typename Type = std::remove_cvref_t<Component>>
     requires(!std::is_empty_v<Type>)
     ECS_FORCEINLINE void emplace(Entity e, Component&& c) {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Type>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Type>*>(m_storages.at(detail::sequenceID<Type>()).get());
@@ -110,6 +124,8 @@ struct World final : NoCopyNoMove {
 
     template<typename Component, typename... Args>
     ECS_FORCEINLINE void emplace(Entity e, Args&&... args) {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
@@ -120,6 +136,8 @@ struct World final : NoCopyNoMove {
     template<typename Component, typename Type = std::remove_cvref_t<Component>>
     requires(!std::is_empty_v<Type>)
     ECS_FORCEINLINE void forceEmplace(Entity e, Component&& c) {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Type>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Type>*>(m_storages.at(detail::sequenceID<Type>()).get());
@@ -130,6 +148,8 @@ struct World final : NoCopyNoMove {
 
     template<typename Component, typename... Args>
     ECS_FORCEINLINE void forceEmplace(Entity e, Args&&... args) {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
@@ -141,18 +161,24 @@ struct World final : NoCopyNoMove {
     template<typename Component, typename Type = std::remove_cvref_t<Component>>
     requires(!std::is_empty_v<Type>)
     ECS_FORCEINLINE void emplaceTagged(Entity e, Component&& c) {
+        ECS_PROFILER(ZoneScoped);
+
         emplace<Type>(e, std::forward<Component>(c));
         markUpdated<Type>(e);
     }
 
     template<typename Component, typename... Args>
     ECS_FORCEINLINE void emplaceTagged(Entity e, Args&&... args) {
+        ECS_PROFILER(ZoneScoped);
+
         emplace<Component>(e, std::forward<Args>(args)...);
         markUpdated<Component>(e);
     }
 
     template<typename Component>
     ECS_FORCEINLINE void markUpdated(Entity e) {
+        ECS_PROFILER(ZoneScoped);
+
         using Tag = Updated<Component>;
         ECS_ASSERT(has<Component>(e), "Entity should have Component before you can marked it as Updated");
         emplace<Tag>(e);
@@ -160,18 +186,24 @@ struct World final : NoCopyNoMove {
 
     template<typename Component>
     ECS_FORCEINLINE void clearUpdateTag(Entity e) {
+        ECS_PROFILER(ZoneScoped);
+
         using Tag = Updated<Component>;
         erase<Tag>(e);
     }
 
     template<typename Component>
     ECS_FORCEINLINE void clearUpdateTag(std::span<const Entity> ents) {
+        ECS_PROFILER(ZoneScoped);
+
         using Tag = Updated<Component>;
         erase<Tag>(ents);
     }
 
     template<typename Component>
     ECS_FORCEINLINE void erase(Entity e) {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
@@ -181,6 +213,8 @@ struct World final : NoCopyNoMove {
 
     template<typename Component>
     ECS_FORCEINLINE void erase(std::span<const Entity> ents) {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(std::ranges::all_of(ents, [this](const Entity& e) { return isAlive(e); }), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
@@ -191,6 +225,8 @@ struct World final : NoCopyNoMove {
     template<typename Component>
     requires(!std::is_empty_v<Component>)
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) get(Entity e) noexcept {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
@@ -200,6 +236,8 @@ struct World final : NoCopyNoMove {
     template<typename Component>
     requires(!std::is_empty_v<Component>)
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) tryGet(Entity e) noexcept {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
@@ -208,12 +246,16 @@ struct World final : NoCopyNoMove {
 
     template<typename Component>
     [[nodiscard]] const std::vector<Entity>& entities() const noexcept {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
         return storage->entities();
     }
 
     [[nodiscard]] Entity create() {
+        ECS_PROFILER(ZoneScoped);
+
         if (m_free_entities.empty()) {
             m_free_entities.emplace_back(m_entities.size());
         }
@@ -235,6 +277,8 @@ struct World final : NoCopyNoMove {
     }
 
     void destroy(Entity e) {
+        ECS_PROFILER(ZoneScoped);
+
         auto it = std::ranges::find(m_entities_to_destroy, e);
         if (it == m_entities_to_destroy.end()) {
             m_entities_to_destroy.emplace_back(e);
@@ -242,12 +286,16 @@ struct World final : NoCopyNoMove {
     }
 
     void destroy(std::span<const Entity> entities) {
+        ECS_PROFILER(ZoneScoped);
+
         for (auto entity : entities) {
             destroy(entity);
         }
     }
 
     void flush() {
+        ECS_PROFILER(ZoneScoped);
+
         for (auto entity : std::views::reverse(m_entities_to_destroy)) {
             ECS_ASSERT(isAlive(entity), "Entity doesn't exist");
             for (auto& storage : m_storages) {
@@ -267,6 +315,8 @@ struct World final : NoCopyNoMove {
     }
 
     std::vector<std::string> componentsNames(Entity e) {
+        ECS_PROFILER(ZoneScoped);
+
         ECS_RELEASE_ONLY(
           spdlog::warn("Don't use this method in release build. We don't have storage names in release build"));
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
@@ -283,12 +333,16 @@ struct World final : NoCopyNoMove {
     void subscribe(std::function<void(Entity)> func) { m_notify_callback.emplace_back(std::move(func)); }
 
     void notify(Entity entity) {
+        ECS_PROFILER(ZoneScoped);
+
         for (const auto& func : m_notify_callback) {
             func(entity);
         }
     }
 
     void notify(std::span<const Entity> entities) {
+        ECS_PROFILER(ZoneScoped);
+
         for (const auto& func : m_notify_callback) {
             for (auto entity : entities) {
                 func(entity);
@@ -297,6 +351,8 @@ struct World final : NoCopyNoMove {
     }
 
     void optimise() {
+        ECS_PROFILER(ZoneScoped);
+
         static uint16_t storage_id = 0;
         static uint8_t  frame      = 0;
 

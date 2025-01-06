@@ -11,6 +11,8 @@
 EntityDebugSystem::EntityDebugSystem(World& world) : m_world(world) {}
 
 void EntityDebugSystem::setup(Registry& reg) { // NOLINT
+    ECS_PROFILER(ZoneScoped);
+
     ECS_NOT_FINAL_ONLY(ECS_REG_FUNC(reg, EntityDebugSystem::trackEntitiesCount));
 
     ComponentRegistrant<Name>(m_world)
@@ -37,6 +39,8 @@ void EntityDebugSystem::setup(Registry& reg) { // NOLINT
 }
 
 void EntityDebugSystem::trackEntitiesCount(OBSERVER(RunEveryFrame) /*unused*/) {
+    ECS_PROFILER(ZoneScoped);
+
 #ifdef ECS_ENABLE_IMGUI
     static float time_tick = 0;
 
@@ -50,6 +54,8 @@ void EntityDebugSystem::trackEntitiesCount(OBSERVER(RunEveryFrame) /*unused*/) {
 }
 
 void EntityDebugSystem::showRegisteredComponents() {
+    ECS_PROFILER(ZoneScoped);
+
 #ifdef ECS_ENABLE_IMGUI
     static bool show = false;
 
@@ -85,6 +91,8 @@ void EntityDebugSystem::showRegisteredComponents() {
 }
 
 void EntityDebugSystem::showRegisteredFunctions() {
+    ECS_PROFILER(ZoneScoped);
+
 #ifdef ECS_ENABLE_IMGUI
     static bool show = false;
 
@@ -107,6 +115,8 @@ void EntityDebugSystem::showRegisteredFunctions() {
 
 
 void EntityDebugSystem::showEntityListUI() {
+    ECS_PROFILER(ZoneScoped);
+
 #ifdef ECS_ENABLE_IMGUI
     static bool                                                  show = false;
     static std::unordered_map<Entity, std::function<bool(void)>> show_entity_info;
@@ -173,6 +183,8 @@ void EntityDebugSystem::showEntityListUI() {
 }
 
 bool EntityDebugSystem::showEntityInfoUI(Entity e) { // NOLINT
+    ECS_PROFILER(ZoneScoped);
+
 #ifdef ECS_ENABLE_IMGUI
     bool show = true;
 
@@ -207,6 +219,8 @@ bool EntityDebugSystem::showEntityInfoUI(Entity e) { // NOLINT
 }
 
 void EntityDebugSystem::entityHistory() {
+    ECS_PROFILER(ZoneScoped);
+
 #ifdef ECS_ENABLE_IMGUI
     if (m_show_entities_history &&
         ImGui::Begin("Entity count", &m_show_entities_history, ImGuiWindowFlags_NoCollapse)) {
