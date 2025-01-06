@@ -296,6 +296,17 @@ struct World final : NoCopyNoMove {
         }
     }
 
+    void optimise() {
+        static uint16_t storage_id = 0;
+        static uint8_t  frame      = 0;
+
+        if (++frame &= 0x7F; !frame) {
+            assert(m_storages.size());
+            m_storages[storage_id++]->optimise();
+            storage_id %= m_storages.size();
+        }
+    }
+
 private:
     std::unique_ptr<Registry>                 m_reg;
     std::vector<Entity>                       m_entities;

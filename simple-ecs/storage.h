@@ -23,6 +23,7 @@ struct StorageBase : SparseSet {
     ECS_DEBUG_ONLY(IDType id() const noexcept { return m_id; })
     ECS_DEBUG_ONLY(std::string name() const noexcept { return m_string_name; })
 
+    virtual bool optimise() = 0;
 
 protected:
     std::vector<Entity> m_entities;
@@ -127,6 +128,29 @@ struct Storage final : StorageBase {
             return &m_components[m_sparse[e]];
         }
         return nullptr;
+    }
+
+    bool optimise() override {
+        if constexpr (std::is_empty_v<Component>) {
+            return true;
+        } else {
+            if (m_dense.empty()) {
+                return true;
+            }
+
+            bool sorted = true;
+            // make one sort pass to avoid long block
+            for (auto it = std::next(m_dense.begin()); it < m_dense.end(); ++it) {
+                if (*std::prev(it) > *it) {
+                    auto prev = std::prev(it);
+                    std::swap(m_components[m_sparse[*prev]], m_components[m_sparse[*it]]);
+                    std::swap(m_sparse[*prev], m_sparse[*it]);
+                    std::iter_swap(prev, it);
+                    sorted = false;
+                }
+            }
+            return sorted;
+        }
     }
 
 private:
