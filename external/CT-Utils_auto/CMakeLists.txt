@@ -8,7 +8,7 @@ include(FetchContent)
 FetchContent_Declare(
     ct_git
     GIT_REPOSITORY https://gitlab.com/p34ch-main/ct-utils.git
-    GIT_TAG        v1.0.0
+    GIT_TAG        v1.0.1
 )
 
 FetchContent_MakeAvailable(ct_git)
