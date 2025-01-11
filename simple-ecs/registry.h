@@ -52,23 +52,23 @@ struct Registry final : NoCopyNoMove {
 
     Serializer& serializer() noexcept { return m_serializer; }
 
-
 #ifdef ECS_FINAL
     template<typename System, typename... Filters>
     requires(sizeof...(Filters) > 0 && std::derived_from<System, BaseSystem>)
     void registerFunction(std::uint32_t id, void (System::*f)(OBSERVER(Filters)...), System* obj) {
-        (m_observer_manager.registerObserver<Filters>(), ...);
+        (m_observer_manager.registerObserver<Filters>(id), ...);
         m_functions.emplace_back(id, f, obj, m_world);
     }
 
     template<typename... Filters>
     requires(sizeof...(Filters) > 0)
     void registerFunction(std::uint32_t id, void (*f)(OBSERVER(Filters)...)) {
-        (m_observer_manager.registerObserver<Filters>(), ...);
+        (m_observer_manager.registerObserver<Filters>(id), ...);
         m_functions.emplace_back(id, f, m_world);
     }
 
     void unregisterFunction(std::uint32_t id) {
+        m_observer_manager.unregisterObserver(id);
         m_cleanup_callbacks.emplace([this, id] { std::erase(m_functions, id); });
     }
 #else
@@ -85,7 +85,7 @@ struct Registry final : NoCopyNoMove {
             spdlog::debug("{} function was registered", fname);
         }
 
-        (m_observer_manager.registerObserver<Filters>(), ...);
+        (m_observer_manager.registerObserver<Filters>(crc32::compute(fname)), ...);
         m_functions.emplace_back(fname, f, obj, m_world);
     }
 
@@ -102,7 +102,7 @@ struct Registry final : NoCopyNoMove {
             spdlog::debug("{} function was registered", fname);
         }
 
-        (m_observer_manager.registerObserver<Filters>(), ...);
+        (m_observer_manager.registerObserver<Filters>(crc32::compute(fname)), ...);
         m_functions.emplace_back(fname, f, m_world);
     }
 
@@ -116,6 +116,7 @@ struct Registry final : NoCopyNoMove {
         } else {
             spdlog::debug("{} function was unregistered", fname);
         }
+        m_observer_manager.unregisterObserver(crc32::compute(fname));
         m_cleanup_callbacks.emplace([this, fname] { std::erase(m_functions, fname); });
     }
 #endif
@@ -230,12 +231,14 @@ struct Registry final : NoCopyNoMove {
         while (!m_frame_ready.load(std::memory_order_relaxed)) {}
     }
 
+    void prepare() noexcept { m_observer_manager.triger(); }
+
     void exec() noexcept {
         ECS_PROFILER(ZoneScoped);
 
         assert(m_init_callbacks.empty() && "all systems must be initialized");
 
-        m_observer_manager.update();
+        m_observer_manager.sync();
         for (const auto& function : m_functions) {
             function();
         }

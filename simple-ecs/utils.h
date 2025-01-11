@@ -90,6 +90,8 @@ using TmpBufferVector = decltype(TMP_GET(std::vector<Entity>));
 // operators
 template<typename T>
 ECS_FORCEINLINE static TmpBufferVector operator|(const std::vector<T>& lhs, const std::vector<T>& rhs) {
+    ECS_PROFILER(ZoneScoped);
+
     if (lhs.empty()) {
         auto result = TMP_GET(std::vector<Entity>);
         result->insert(result->end(), rhs.begin(), rhs.end());
@@ -121,6 +123,8 @@ ECS_FORCEINLINE static TmpBufferVector operator|(const std::vector<T>& lhs, TmpB
 
 template<typename T>
 ECS_FORCEINLINE static TmpBufferVector operator&(const std::vector<T>& lhs, const std::vector<T>& rhs) {
+    ECS_PROFILER(ZoneScoped);
+
     if (lhs.empty() || rhs.empty()) {
         return TMP_GET(std::vector<Entity>);
     }
@@ -139,6 +143,8 @@ ECS_FORCEINLINE static TmpBufferVector operator&(const std::vector<T>& lhs, TmpB
 }
 
 ECS_FORCEINLINE static TmpBufferVector operator-(TmpBufferVector lhs, TmpBufferVector rhs) { // NOLINT
+    ECS_PROFILER(ZoneScoped);
+
     if (lhs->empty()) {
         return TMP_GET(std::vector<Entity>);
     }

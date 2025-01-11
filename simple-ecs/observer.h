@@ -215,6 +215,6 @@ struct Observer final : NoCopyNoMove {
     }
 
 private:
-    World&                            m_world;
-    static inline std::vector<Entity> m_entities;
+    World&              m_world;
+    std::vector<Entity> m_entities;
 };

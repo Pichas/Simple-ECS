@@ -35,6 +35,8 @@ int main() {
 
 
     while (true) {
+        ECS_PROFILER(FrameMark);
+        reg->prepare();
         reg->exec();
 
         spdlog::info("--- Players {}, Bosses {} ---", w.size<Player>(), w.size<Boss>());

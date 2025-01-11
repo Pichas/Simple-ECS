@@ -56,7 +56,6 @@ endif()
 
 
 if(ECS_FINAL)
-    set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     set_target_properties(${PROJECT_NAME} PROPERTIES UNITY_BUILD ON)
     target_compile_definitions(${PROJECT_NAME} PUBLIC ECS_FINAL)
     set(ECS_ENABLE_IMGUI OFF)

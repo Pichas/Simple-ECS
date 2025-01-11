@@ -91,7 +91,7 @@ struct FilteredEntities<AND<Components<Component...>>> {
     static TmpBufferVector ents(const World& world) {
         ECS_PROFILER(ZoneScoped);
 
-        std::vector<EntitiesWrapper> ents_by_comps{world.entities<Component>()...};
+        static std::vector<EntitiesWrapper> ents_by_comps{world.entities<Component>()...};
         std::ranges::sort(
           ents_by_comps, std::less<>{}, [](const EntitiesWrapper& v) noexcept { return v.get().size(); });
 
@@ -105,8 +105,9 @@ template<typename Component>
 struct FilteredEntities<AND<Components<Component>>> {
     static TmpBufferVector ents(const World& world) {
         ECS_PROFILER(ZoneScoped);
+
         const auto& entities = world.entities<Component>();
-        auto        result   = TmpBuffer::get<std::vector<Entity>>();
+        auto        result   = TMP_GET(std::vector<Entity>);
         result->insert(result->end(), entities.begin(), entities.end());
 
         return result;
@@ -116,7 +117,7 @@ struct FilteredEntities<AND<Components<Component>>> {
 template<>
 struct FilteredEntities<AND<Components<>>> {
     FilteredEntities(const World& /*unused*/) {}
-    static TmpBufferVector ents(const World& /*world*/) { return TmpBuffer::get<std::vector<Entity>>(); }
+    static TmpBufferVector ents(const World& /*world*/) { return TMP_GET(std::vector<Entity>); }
 };
 
 
@@ -126,7 +127,7 @@ struct FilteredEntities<OR<Components<Component...>>> {
     static TmpBufferVector ents(const World& world) {
         ECS_PROFILER(ZoneScoped);
 
-        std::vector<EntitiesWrapper> ents_by_comps{world.entities<Component>()...};
+        static std::vector<EntitiesWrapper> ents_by_comps{world.entities<Component>()...};
         std::ranges::sort(
           ents_by_comps, std::less<>{}, [](const EntitiesWrapper& v) noexcept { return v.get().size(); });
 
@@ -140,8 +141,9 @@ template<typename Component>
 struct FilteredEntities<OR<Components<Component>>> {
     static TmpBufferVector ents(const World& world) {
         ECS_PROFILER(ZoneScoped);
+
         const auto& entities = world.entities<Component>();
-        auto        result   = TmpBuffer::get<std::vector<Entity>>();
+        auto        result   = TMP_GET(std::vector<Entity>);
         result->insert(result->end(), entities.begin(), entities.end());
 
         return result;
@@ -151,5 +153,5 @@ struct FilteredEntities<OR<Components<Component>>> {
 
 template<>
 struct FilteredEntities<OR<Components<>>> {
-    static TmpBufferVector ents(const World& /*world*/) { return TmpBuffer::get<std::vector<Entity>>(); }
+    static TmpBufferVector ents(const World& /*world*/) { return TMP_GET(std::vector<Entity>); }
 };
