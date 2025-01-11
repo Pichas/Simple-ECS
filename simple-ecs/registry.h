@@ -1,7 +1,7 @@
 #pragma once
 
 #include "simple-ecs/base_system.h"
-#include "simple-ecs/observer.h"
+#include "simple-ecs/observer_manager.h"
 #include "simple-ecs/serializer.h"
 #include "simple-ecs/utils.h"
 #include "simple-ecs/world.h"
@@ -13,6 +13,7 @@
 #include <functional>
 #include <queue>
 #include <ranges>
+#include <tasks/tasks.h>
 #include <thread>
 #include <utility>
 
@@ -36,9 +37,31 @@
 #define ECS_JOB_STOP false
 #define ECS_JOB bool
 
+namespace detail::registry
+{
+
+inline IDType nextID() {
+    static IDType id = 0;
+    return id++;
+}
+
+template<typename T>
+inline IDType sequenceID() {
+    static IDType id = nextID();
+    return id;
+};
+
+template<typename Filter>
+inline Observer<Filter>& observers(World& world) {
+    static Observer<Filter> observer{world};
+    return observer;
+};
+
+} // namespace detail::registry
+
 
 struct Registry final : NoCopyNoMove {
-    Registry(World& world) : m_world(world), m_frame_ready(false), m_serializer(m_world) {}
+    Registry(World& world) : m_world(world), m_frame_ready(false), m_serializer(m_world), m_observer_manager(world) {}
     ~Registry() {
         ECS_PROFILER(ZoneScoped);
 
@@ -56,12 +79,14 @@ struct Registry final : NoCopyNoMove {
     template<typename System, typename... Filters>
     requires(sizeof...(Filters) > 0 && std::derived_from<System, BaseSystem>)
     void registerFunction(std::uint32_t id, void (System::*f)(OBSERVER(Filters)...), System* obj) {
+        (m_observer_manager.registerObserver<Filters>(), ...);
         m_functions.emplace_back(id, f, obj, m_world);
     }
 
     template<typename... Filters>
     requires(sizeof...(Filters) > 0)
     void registerFunction(std::uint32_t id, void (*f)(OBSERVER(Filters)...)) {
+        (m_observer_manager.registerObserver<Filters>(), ...);
         m_functions.emplace_back(id, f, m_world);
     }
 
@@ -81,6 +106,8 @@ struct Registry final : NoCopyNoMove {
         } else {
             spdlog::debug("{} function was registered", fname);
         }
+
+        (m_observer_manager.registerObserver<Filters>(), ...);
         m_functions.emplace_back(fname, f, obj, m_world);
     }
 
@@ -96,6 +123,8 @@ struct Registry final : NoCopyNoMove {
         } else {
             spdlog::debug("{} function was registered", fname);
         }
+
+        (m_observer_manager.registerObserver<Filters>(), ...);
         m_functions.emplace_back(fname, f, m_world);
     }
 
@@ -228,6 +257,7 @@ struct Registry final : NoCopyNoMove {
 
         assert(m_init_callbacks.empty() && "all systems must be initialized");
 
+        m_observer_manager.update();
         for (const auto& function : m_functions) {
             function();
         }
@@ -267,13 +297,14 @@ private:
                  void (System::*f)(OBSERVER(Filters)...),
                  System* obj,
                  World&  world)
-          : m_function([f, obj, &world] { std::invoke(f, obj, Observer<Filters>(world)...); }), m_id(id){};
+          : m_function([f, obj, &world] { std::invoke(f, obj, detail::registry::observers<Filters>(world)...); })
+          , m_id(id){};
 
         template<typename... Filters>
         Function(ECS_FINAL_SWITCH(std::uint32_t, std::string_view) id, //
                  void (*f)(OBSERVER(Filters)...),
                  World& world)
-          : m_function([f, &world] { std::invoke(f, Observer<Filters>(world)...); }), m_id(id) {}
+          : m_function([f, &world] { std::invoke(f, detail::registry::observers<Filters>(world)...); }), m_id(id) {}
 
         void operator()() const {
             ECS_PROFILER(ZoneScoped);
@@ -316,4 +347,5 @@ private:
     std::unordered_map<SystemID, std::vector<std::jthread>> m_parallel_jobs;
     std::atomic_bool                                        m_frame_ready;
     Serializer                                              m_serializer;
+    ObserverManager                                         m_observer_manager;
 };

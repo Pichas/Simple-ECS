@@ -14,7 +14,7 @@
 #include <vector>
 
 
-namespace detail
+namespace detail::world
 {
 inline IDType nextID() {
     static IDType id = 0;
@@ -26,7 +26,7 @@ inline IDType sequenceID() {
     static IDType id = nextID();
     return id;
 };
-} // namespace detail
+} // namespace detail::world
 
 struct Registry;
 
@@ -48,8 +48,8 @@ struct World final : NoCopyNoMove {
     void addEmplaceCallback(Storage<Component>::Callback&& f) {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
         storage->addEmplaceCallback(std::move(f));
     }
 
@@ -57,8 +57,8 @@ struct World final : NoCopyNoMove {
     void addDestroyCallback(Storage<Component>::Callback&& f) {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
         storage->addDestroyCallback(std::move(f));
     }
 
@@ -66,8 +66,8 @@ struct World final : NoCopyNoMove {
     decltype(auto) size() const noexcept {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
         return storage->size();
     }
 
@@ -75,8 +75,8 @@ struct World final : NoCopyNoMove {
     decltype(auto) empty() const noexcept {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
         return storage->empty();
     }
 
@@ -87,8 +87,8 @@ struct World final : NoCopyNoMove {
 
         auto add_storage = [this]<typename T>() {
             // generate runtime ID for components.
-            std::ignore = detail::sequenceID<T>();
-            ECS_ASSERT(m_storages.size() == detail::sequenceID<T>(), "Storage already exists");
+            std::ignore = detail::world::sequenceID<T>();
+            ECS_ASSERT(m_storages.size() == detail::world::sequenceID<T>(), "Storage already exists");
             m_storages.emplace_back(std::make_unique<Storage<T>>());
         };
 
@@ -103,9 +103,9 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE bool has(Entity e) noexcept {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
         return storage->has(e);
     }
 
@@ -114,9 +114,9 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE void emplace(Entity e, Component&& c) {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Type>(), "Storage doesn't exist");
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Type>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto* storage = static_cast<Storage<Type>*>(m_storages.at(detail::sequenceID<Type>()).get());
+        auto* storage = static_cast<Storage<Type>*>(m_storages.at(detail::world::sequenceID<Type>()).get());
         storage->emplace(e, std::forward<Component>(c));
         notify(e);
     }
@@ -125,9 +125,9 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE void emplace(Entity e, Args&&... args) {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
         storage->emplace(e, std::forward<Args>(args)...);
         notify(e);
     }
@@ -137,9 +137,9 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE void forceEmplace(Entity e, Component&& c) {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Type>(), "Storage doesn't exist");
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Type>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto* storage = static_cast<Storage<Type>*>(m_storages.at(detail::sequenceID<Type>()).get());
+        auto* storage = static_cast<Storage<Type>*>(m_storages.at(detail::world::sequenceID<Type>()).get());
         storage->erase(e);
         storage->emplace(e, std::forward<Component>(c));
         notify(e);
@@ -149,9 +149,9 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE void forceEmplace(Entity e, Args&&... args) {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
         storage->erase(e);
         storage->emplace(e, std::forward<Args>(args)...);
         notify(e);
@@ -203,9 +203,9 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE void erase(Entity e) {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
         storage->erase(e);
         notify(e);
     }
@@ -214,9 +214,9 @@ struct World final : NoCopyNoMove {
     ECS_FORCEINLINE void erase(std::span<const Entity> ents) {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(std::ranges::all_of(ents, [this](const Entity& e) { return isAlive(e); }), "Entity doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
         storage->erase(ents);
         notify(ents);
     }
@@ -226,9 +226,9 @@ struct World final : NoCopyNoMove {
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) get(Entity e) noexcept {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
         return storage->get(e);
     }
 
@@ -237,9 +237,9 @@ struct World final : NoCopyNoMove {
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) tryGet(Entity e) noexcept {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
         ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
         return storage->tryGet(e);
     }
 
@@ -247,8 +247,8 @@ struct World final : NoCopyNoMove {
     [[nodiscard]] const std::vector<Entity>& entities() const noexcept {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::sequenceID<Component>(), "Storage doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::sequenceID<Component>()).get());
+        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
+        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
         return storage->entities();
     }
 

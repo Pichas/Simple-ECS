@@ -4,6 +4,7 @@
 #include "simple-ecs/tools/profiler.h" // IWYU pragma: export
 #include <spdlog/spdlog.h>
 #include <ct/names.h>
+#include <tmp_buffer/tmp_buffer.h>
 
 #include <algorithm>
 #include <cassert>
@@ -84,78 +85,71 @@ constexpr std::string serializeId() {
     return {std::launder(reinterpret_cast<const char* const>(&id)), sizeof(id)};
 }
 
+using TmpBufferVector = decltype(TMP_GET(std::vector<Entity>));
+
 // operators
 template<typename T>
-inline const std::vector<T>& operator|(const std::vector<T>& lhs, const std::vector<T>& rhs) {
+ECS_FORCEINLINE static TmpBufferVector operator|(const std::vector<T>& lhs, const std::vector<T>& rhs) {
     if (lhs.empty()) {
-        return rhs; // NOLINT
+        auto result = TMP_GET(std::vector<Entity>);
+        result->insert(result->end(), rhs.begin(), rhs.end());
+        return result;
     }
 
     if (rhs.empty()) {
-        return lhs; // NOLINT
+        auto result = TMP_GET(std::vector<Entity>);
+        result->insert(result->end(), lhs.begin(), lhs.end());
+        return result;
     }
 
-    static std::vector<T> result;
-    result.resize(lhs.size());
+    auto result = TMP_GET(std::vector<Entity>);
+    result->reserve(lhs.size() + rhs.size());
 
-    auto it = std::set_union(lhs.cbegin(), lhs.cend(), rhs.cbegin(), rhs.cend(), result.begin());
-    result.erase(it, result.end());
+    std::ranges::set_union(lhs, rhs, std::back_inserter(*result));
     return result;
 }
 
-inline const std::vector<Entity> EMPTY_ARRAY;
+template<typename T>
+ECS_FORCEINLINE static TmpBufferVector operator|(const std::vector<T>& lhs, TmpBufferVector rhs) {
+    if (lhs.empty()) {
+        return rhs;
+    }
+
+    return lhs | *rhs;
+}
+
 
 template<typename T>
-inline const std::vector<T>& operator&(const std::vector<T>& lhs, const std::vector<T>& rhs) {
+ECS_FORCEINLINE static TmpBufferVector operator&(const std::vector<T>& lhs, const std::vector<T>& rhs) {
     if (lhs.empty() || rhs.empty()) {
-        return EMPTY_ARRAY;
+        return TMP_GET(std::vector<Entity>);
     }
 
-    static std::vector<T> result;
-    result.resize(lhs.size());
+    auto result = TMP_GET(std::vector<Entity>);
+    result->reserve(lhs.size());
 
-    auto it = std::set_intersection(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), result.begin());
-    result.erase(it, result.end());
+    std::ranges::set_intersection(lhs, rhs, std::back_inserter(*result));
     return result;
 }
 
+
 template<typename T>
-inline const std::vector<T>& operator-(const std::vector<T>& lhs, const std::vector<T>& rhs) {
-    if (lhs.empty()) {
-        return EMPTY_ARRAY;
-    }
-
-    if (rhs.empty()) {
-        return lhs; // NOLINT
-    }
-
-    static std::vector<T> result;
-    result.resize(lhs.size());
-
-    auto it = std::set_difference(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), result.begin());
-    result.erase(it, result.end());
-    return result;
+ECS_FORCEINLINE static TmpBufferVector operator&(const std::vector<T>& lhs, TmpBufferVector rhs) {
+    return lhs & *rhs;
 }
 
-template<typename T>
-inline const std::vector<T>& operator+(const std::vector<T>& lhs, const std::vector<T>& rhs) { // append only uniq
-    if (lhs.empty()) {
-        return rhs; // NOLINT
+ECS_FORCEINLINE static TmpBufferVector operator-(TmpBufferVector lhs, TmpBufferVector rhs) {
+    if (lhs->empty()) {
+        return TMP_GET(std::vector<Entity>);
     }
 
-    if (rhs.empty()) {
-        return lhs; // NOLINT
+    if (rhs->empty()) {
+        return lhs;
     }
 
-    static std::vector<T> result;
-    result = lhs;
+    auto result = TMP_GET(std::vector<Entity>);
+    result->reserve(lhs->size());
 
-    // we have to use an ordered vector for the operator-()
-    std::vector<T> temp = lhs;
-    std::sort(temp.begin(), temp.end());
-
-    auto uniq_to_append = rhs - temp;
-
-    result.insert(result.end(), uniq_to_append.begin(), uniq_to_append.end());
+    std::ranges::set_difference(*lhs, *rhs, std::back_inserter(*result));
     return result;
 }
