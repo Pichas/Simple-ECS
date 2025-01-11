@@ -36,6 +36,7 @@ int main() {
 
     while (true) {
         ECS_PROFILER(FrameMark);
+
         reg->prepare();
         reg->exec();
 
@@ -43,11 +44,18 @@ int main() {
         if (w.empty<Player>() || w.empty<Boss>()) {
             break;
         }
+
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(1ms);
     }
 
     // to check that all works fine
     reg->removeSystem<HPSystem>();
     reg->removeSystem<BattleSystem>();
+
+    // one more iteration to apply changes
+    reg->prepare();
+    reg->exec();
 
     return 0;
 }

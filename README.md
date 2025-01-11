@@ -14,7 +14,7 @@ World world;
 
 ### Registry
 
-The `World` has a `Registry` inside. The `Registry` adds systems and functions for execution. Also it has `exec` method to calculate one frame.
+The `World` has a `Registry` inside. The `Registry` adds systems and functions for execution. Also it has `prepare` and `exec` methods to select entities and calculate one frame respectively. The `prepare` method is thread safe, so you can call it from the `render` thread if you have separate threads for graphic and logic.
 
 ```cpp
 auto* reg = world.getRegistry();
@@ -25,7 +25,10 @@ reg->initNewSystems();
 auto* my_system = reg.getSystem<MySystem>();
 assert(my_system);
 
-while(true) reg->exec();
+while(true) {
+    reg->prepare();
+    reg->exec();
+}
 
 reg.removeSystem<MySystem>();
 ```
@@ -257,25 +260,27 @@ void MySystem::create(OBSERVER(PlayerFilter) observer) {
 
 ## Multithreading
 
-If you want to use ECS in separate thread toy can use `Registry` functions
+If you want to use ECS in separate thread you can use `Registry` functions for it:
 
-* `syncWithRender()` - ECS function. Wait untill render calls `frameSynchronized()` function
-* `frameSynchronized()` - Render functions. Call to notify ECS that frame is sinchronized and it can process the next one.
-* `waitFrame()` - Render functions. Wait until ECS if processing the frame.
-* `exec()` ECS function. At the end of the frame calculation sets the flag for `waitFrame()` function
+* `syncWithRender()` - ECS function. Wait untill the Render calls `frameSynchronized()` function
+* `frameSynchronized()` - Render function. Call to notify ECS that frame is sinchronized and it can process the next one.
+* `waitFrame()` - Render function. Wait while ECS calculates the next frame.
+* `exec()` - ECS function. At the end of the frame calculation sets the flag for the `waitFrame()` function
+
+> NOTE: You can call `reg->prepare()` function in the sync data step from the Render thread.
 
 Example
 
 | Render thread: | ECS thread |
 | ---  | --- |
 | reg.waitFrame(); | reg.syncWithRender(); |
-| sync data | -wait- |
+| sync data and filter Entities | -wait- |
 | reg.frameSynchronized(); | -wait- |
 | render data | reg.exec(); |
 
 ### Run ECS Job in separate thread
 
-You can dispatch a separate job to work in background
+You can dispatch a separate job to work in background but you also need to sync it with your system and properly stop before the system is destroyed. You can override `System::stop()` function for it.
 
 ```cpp
 struct MySystem final : BaseSystem {
@@ -290,7 +295,7 @@ void MySystem::setup(Registry& reg) {
 }
 
 ECS_JOB MySystem::worker() {
-    // WARN: provide exit state in the `Stop` function for proper application exit
+    // WARN: provide exit state in the `Stop` function to properly exit the application
     if (done) {
         return ECS_JOB_STOP;
     }

@@ -18,10 +18,10 @@
 #include <utility>
 
 
-#ifndef ECS_FINAL
-#define ECS_FUNCTION_ID(F) #F
-#else
+#ifdef ECS_FINAL
 #define ECS_FUNCTION_ID(F) #F##_crc
+#else
+#define ECS_FUNCTION_ID(F) #F
 #endif
 
 // clang-format off
@@ -252,15 +252,15 @@ struct Registry final : NoCopyNoMove {
 
     // save including filtering time
     std::vector<std::pair<double, std::string_view>> getRegisteredFunctionsInfo() {
-#ifndef ECS_FINAL
+#ifdef ECS_FINAL
+        return {};
+#else
         std::vector<std::pair<double, std::string_view>> names;
         names.reserve(m_functions.size());
         for (const auto& func : m_functions) {
             names.emplace_back(func.executionTime(), func.name());
         }
         return names;
-#else
-        return {};
 #endif
     }
 

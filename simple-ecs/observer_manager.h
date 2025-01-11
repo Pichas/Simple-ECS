@@ -1,9 +1,9 @@
 #pragma once
 
-
 #include "simple-ecs/observer.h"
 #include "simple-ecs/utils.h"
 #include <shared_mutex>
+
 
 namespace detail::observer
 {
@@ -19,14 +19,13 @@ inline IDType sequenceID() {
     return id;
 };
 
-
 } // namespace detail::observer
 
 
 struct ObserverManager : NoCopyNoMove {
     friend struct Registry;
 
-    static inline size_t thread_count = std::thread::hardware_concurrency() / 2;
+    static inline size_t thread_count = std::thread::hardware_concurrency();
 
     template<typename Filter>
     ECS_FORCEINLINE static Observer<Filter>& observers(World& world) {
@@ -62,7 +61,7 @@ public:
     ECS_FORCEINLINE void triger() {
         ECS_PROFILER(ZoneScoped);
 
-        m_sync.store(!m_sync.load(std::memory_order_relaxed));
+        m_sync.store(!m_sync.load(std::memory_order_acquire), std::memory_order_release);
         m_sync.notify_all();
     }
 
@@ -85,6 +84,7 @@ public:
 
     void unregisterObserver(std::uint32_t fname) {
         for (auto observer_id : m_funcs_to_observers[fname]) {
+            assert(m_observers_in_use[observer_id]);
             --m_observers_in_use[observer_id];
             if (!m_observers_in_use[observer_id]) {
                 m_functions[observer_id] = [](World&) {};
@@ -106,7 +106,7 @@ private:
                 is_started.notify_one();
 
                 while (true) {
-                    m_sync.wait(m_sync);
+                    m_sync.wait(m_sync.load(std::memory_order_relaxed), std::memory_order_relaxed);
                     std::shared_lock _(m_mutex);
                     m_threads_control[index].store(true, std::memory_order_relaxed);
 
