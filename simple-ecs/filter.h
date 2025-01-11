@@ -88,65 +88,60 @@ struct FilteredEntities;
 template<typename... Component>
 requires(sizeof...(Component) > 1)
 struct FilteredEntities<AND<Components<Component...>>> {
-    FilteredEntities(const World& world) {
-        static std::vector<EntitiesWrapper> ents_by_comps{world.entities<Component>()...};
+    static std::vector<Entity> ents(const World& world) {
+        ECS_PROFILER(ZoneScoped);
 
+        std::vector<EntitiesWrapper> ents_by_comps{world.entities<Component>()...};
         std::ranges::sort(
           ents_by_comps, std::less<>{}, [](const EntitiesWrapper& v) noexcept { return v.get().size(); });
 
-        entities = ents_by_comps.begin()->get();
-        for (auto it = std::next(ents_by_comps.begin()); it != ents_by_comps.end(); ++it) {
-            entities = entities.get() & it->get();
-        }
+        return [&]<size_t... Is>(std::index_sequence<Is...>) {
+            return (ents_by_comps[Is].get() & ...);
+        }(std::make_index_sequence<sizeof...(Component)>{});
     }
-
-    EntitiesWrapper entities = EMPTY_ARRAY;
 };
 
 template<typename Component>
 struct FilteredEntities<AND<Components<Component>>> {
-    FilteredEntities(const World& world) : entities(world.entities<Component>()) {}
-
-    EntitiesWrapper entities = EMPTY_ARRAY;
+    static std::vector<Entity> ents(const World& world) {
+        ECS_PROFILER(ZoneScoped);
+        return world.entities<Component>();
+    }
 };
 
 template<>
 struct FilteredEntities<AND<Components<>>> {
     FilteredEntities(const World& /*unused*/) {}
-
-    EntitiesWrapper entities = EMPTY_ARRAY;
+    static std::vector<Entity> ents(const World& /*world*/) { return {}; }
 };
 
 
 template<typename... Component>
 requires(sizeof...(Component) > 1)
 struct FilteredEntities<OR<Components<Component...>>> {
-    FilteredEntities(const World& world) {
-        static std::vector<EntitiesWrapper> ents_by_comps{world.entities<Component>()...};
+    static std::vector<Entity> ents(const World& world) {
+        ECS_PROFILER(ZoneScoped);
 
+        std::vector<EntitiesWrapper> ents_by_comps{world.entities<Component>()...};
         std::ranges::sort(
           ents_by_comps, std::less<>{}, [](const EntitiesWrapper& v) noexcept { return v.get().size(); });
 
-        entities = ents_by_comps.begin()->get();
-        for (auto it = std::next(ents_by_comps.begin()); it != ents_by_comps.end(); ++it) {
-            entities = entities.get() | it->get();
-        }
+        return [&]<size_t... Is>(std::index_sequence<Is...>) {
+            return (ents_by_comps[Is].get() | ...);
+        }(std::make_index_sequence<sizeof...(Component)>{});
     }
-
-    EntitiesWrapper entities = EMPTY_ARRAY;
 };
 
 template<typename Component>
 struct FilteredEntities<OR<Components<Component>>> {
-    FilteredEntities(const World& world) : entities(world.entities<Component>()) {}
-
-    EntitiesWrapper entities = EMPTY_ARRAY;
+    static std::vector<Entity> ents(const World& world) {
+        ECS_PROFILER(ZoneScoped);
+        return world.entities<Component>();
+    }
 };
 
 
 template<>
 struct FilteredEntities<OR<Components<>>> {
-    FilteredEntities(const World& /*unused*/) {}
-
-    EntitiesWrapper entities = EMPTY_ARRAY;
+    static std::vector<Entity> ents(const World& /*world*/) { return {}; }
 };

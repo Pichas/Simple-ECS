@@ -84,9 +84,11 @@ constexpr std::string serializeId() {
     return {std::launder(reinterpret_cast<const char* const>(&id)), sizeof(id)};
 }
 
+inline const std::vector<Entity> EMPTY_ARRAY;
+
 // operators
 template<typename T>
-inline const std::vector<T>& operator|(const std::vector<T>& lhs, const std::vector<T>& rhs) {
+inline std::vector<T> operator|(const std::vector<T>& lhs, const std::vector<T>& rhs) {
     if (lhs.empty()) {
         return rhs; // NOLINT
     }
@@ -95,7 +97,9 @@ inline const std::vector<T>& operator|(const std::vector<T>& lhs, const std::vec
         return lhs; // NOLINT
     }
 
-    static std::vector<T> result;
+    ECS_PROFILER(ZoneScoped);
+
+    std::vector<T> result;
     result.resize(lhs.size());
 
     auto it = std::set_union(lhs.cbegin(), lhs.cend(), rhs.cbegin(), rhs.cend(), result.begin());
@@ -103,15 +107,15 @@ inline const std::vector<T>& operator|(const std::vector<T>& lhs, const std::vec
     return result;
 }
 
-inline const std::vector<Entity> EMPTY_ARRAY;
-
 template<typename T>
-inline const std::vector<T>& operator&(const std::vector<T>& lhs, const std::vector<T>& rhs) {
+inline std::vector<T> operator&(const std::vector<T>& lhs, const std::vector<T>& rhs) {
     if (lhs.empty() || rhs.empty()) {
         return EMPTY_ARRAY;
     }
 
-    static std::vector<T> result;
+    ECS_PROFILER(ZoneScoped);
+
+    std::vector<T> result;
     result.resize(lhs.size());
 
     auto it = std::set_intersection(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), result.begin());
@@ -120,7 +124,7 @@ inline const std::vector<T>& operator&(const std::vector<T>& lhs, const std::vec
 }
 
 template<typename T>
-inline const std::vector<T>& operator-(const std::vector<T>& lhs, const std::vector<T>& rhs) {
+inline std::vector<T> operator-(const std::vector<T>& lhs, const std::vector<T>& rhs) {
     if (lhs.empty()) {
         return EMPTY_ARRAY;
     }
@@ -129,7 +133,9 @@ inline const std::vector<T>& operator-(const std::vector<T>& lhs, const std::vec
         return lhs; // NOLINT
     }
 
-    static std::vector<T> result;
+    ECS_PROFILER(ZoneScoped);
+
+    std::vector<T> result;
     result.resize(lhs.size());
 
     auto it = std::set_difference(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), result.begin());
@@ -138,7 +144,7 @@ inline const std::vector<T>& operator-(const std::vector<T>& lhs, const std::vec
 }
 
 template<typename T>
-inline const std::vector<T>& operator+(const std::vector<T>& lhs, const std::vector<T>& rhs) { // append only uniq
+inline std::vector<T> operator+(const std::vector<T>& lhs, const std::vector<T>& rhs) { // append only uniq
     if (lhs.empty()) {
         return rhs; // NOLINT
     }
@@ -147,7 +153,9 @@ inline const std::vector<T>& operator+(const std::vector<T>& lhs, const std::vec
         return lhs; // NOLINT
     }
 
-    static std::vector<T> result;
+    ECS_PROFILER(ZoneScoped);
+
+    std::vector<T> result;
     result = lhs;
 
     // we have to use an ordered vector for the operator-()

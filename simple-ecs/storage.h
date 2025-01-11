@@ -75,11 +75,11 @@ struct Storage final : StorageBase {
             ECS_PROFILER(ZoneScoped);
 
             auto lower = std::ranges::lower_bound(m_entities, e);
+            m_is_optimised &= lower == m_entities.end();
             m_entities.insert(lower, e);
 
             if constexpr (!std::is_empty_v<Component>) {
                 m_components.emplace_back(std::forward<Args>(args)...);
-                m_is_optimised &= lower == m_entities.end();
             }
 
             for (const auto& function : m_on_construct_callbacks) { // do something after construct

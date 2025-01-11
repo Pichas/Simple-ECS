@@ -45,21 +45,26 @@ struct ArchetypeConstructor<Archetype> {
 
 } // namespace detail
 
+inline TracyLockable(std::mutex, mutex);
 
 template<typename Filter = RunEveryFrame>
 struct Observer final : NoCopyNoMove {
     using Require = typename Filter::Require::Type;
     using Exclude = typename Filter::Exclude::Type;
 
-    Observer(World& world) : m_world(world) {
+    Observer(World& world) : m_world(world) { refresh(); }
+
+    ~Observer() noexcept = default;
+
+    void refresh() {
         ECS_PROFILER(ZoneScoped);
 
-        FilteredEntities<AND<Require>> filtered(m_world);
-        FilteredEntities<OR<Exclude>>  excluded(m_world);
-        m_entities = filtered.entities.get() - excluded.entities.get();
-    }
+        m_world.notify(m_entities);
 
-    ~Observer() noexcept { m_world.notify(m_entities); }
+        auto filtered = FilteredEntities<AND<Require>>::ents(m_world);
+        auto excluded = FilteredEntities<OR<Exclude>>::ents(m_world);
+        m_entities    = filtered - excluded;
+    }
 
     Registry* getRegistry() const noexcept { return m_world.getRegistry(); }
 
