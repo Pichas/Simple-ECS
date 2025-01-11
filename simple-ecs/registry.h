@@ -1,7 +1,7 @@
 #pragma once
 
 #include "simple-ecs/base_system.h"
-#include "simple-ecs/observer.h"
+#include "simple-ecs/observer_manager.h"
 #include "simple-ecs/serializer.h"
 #include "simple-ecs/utils.h"
 #include "simple-ecs/world.h"
@@ -61,17 +61,9 @@ inline Observer<Filter>& observers(World& world) {
 
 
 struct Registry final : NoCopyNoMove {
-    Registry(World& world) : m_world(world), m_frame_ready(false), m_serializer(m_world) {}
+    Registry(World& world) : m_world(world), m_frame_ready(false), m_serializer(m_world), m_observer_manager(world) {}
     ~Registry() {
         ECS_PROFILER(ZoneScoped);
-
-        for (auto& thread : m_observers_threads) {
-            thread.request_stop();
-        }
-
-        m_observers_sync.store(!m_observers_sync);
-        m_observers_sync.notify_all();
-        m_observers_threads.clear();
 
         for (const auto& system : std::views::values(m_systems)) {
             system->stop(*this);
@@ -87,14 +79,14 @@ struct Registry final : NoCopyNoMove {
     template<typename System, typename... Filters>
     requires(sizeof...(Filters) > 0 && std::derived_from<System, BaseSystem>)
     void registerFunction(std::uint32_t id, void (System::*f)(OBSERVER(Filters)...), System* obj) {
-        (registerObserver<Filters>(), ...);
+        (m_observer_manager.registerObserver<Filters>(), ...);
         m_functions.emplace_back(id, f, obj, m_world);
     }
 
     template<typename... Filters>
     requires(sizeof...(Filters) > 0)
     void registerFunction(std::uint32_t id, void (*f)(OBSERVER(Filters)...)) {
-        (registerObserver<Filters>(), ...);
+        (m_observer_manager.registerObserver<Filters>(), ...);
         m_functions.emplace_back(id, f, m_world);
     }
 
@@ -115,7 +107,7 @@ struct Registry final : NoCopyNoMove {
             spdlog::debug("{} function was registered", fname);
         }
 
-        (registerObserver<Filters>(), ...);
+        (m_observer_manager.registerObserver<Filters>(), ...);
         m_functions.emplace_back(fname, f, obj, m_world);
     }
 
@@ -132,7 +124,7 @@ struct Registry final : NoCopyNoMove {
             spdlog::debug("{} function was registered", fname);
         }
 
-        (registerObserver<Filters>(), ...);
+        (m_observer_manager.registerObserver<Filters>(), ...);
         m_functions.emplace_back(fname, f, m_world);
     }
 
@@ -265,14 +257,7 @@ struct Registry final : NoCopyNoMove {
 
         assert(m_init_callbacks.empty() && "all systems must be initialized");
 
-        m_observers_counter.store(0, std::memory_order_relaxed);
-        m_observers_sync.store(!m_observers_sync);
-        m_observers_sync.notify_all();
-
-        while (m_observers_counter.load(std::memory_order_relaxed) != m_observers_threads.size()) {
-            std::this_thread::yield();
-        }
-
+        m_observer_manager.update();
         for (const auto& function : m_functions) {
             function();
         }
@@ -353,23 +338,6 @@ private:
         }
     }
 
-
-    template<typename Filter>
-    void registerObserver() {
-        m_observers_threads.emplace_back([this](const std::stop_token& stoken) {
-            while (true) {
-                m_observers_sync.wait(m_observers_sync);
-
-                if (stoken.stop_requested()) {
-                    return;
-                }
-
-                detail::registry::observers<Filter>(m_world).refresh();
-                m_observers_counter.fetch_add(1, std::memory_order_relaxed);
-            }
-        });
-    };
-
 private:
     World&                                                  m_world;
     std::vector<Function>                                   m_functions;
@@ -379,8 +347,5 @@ private:
     std::unordered_map<SystemID, std::vector<std::jthread>> m_parallel_jobs;
     std::atomic_bool                                        m_frame_ready;
     Serializer                                              m_serializer;
-
-    std::vector<std::jthread> m_observers_threads;
-    std::atomic_uint32_t      m_observers_counter;
-    std::atomic_bool          m_observers_sync;
+    ObserverManager                                         m_observer_manager;
 };
