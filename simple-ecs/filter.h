@@ -3,7 +3,7 @@
 #include "simple-ecs/components.h"
 #include "simple-ecs/utils.h"
 #include "simple-ecs/world.h"
-
+#include <tmp_buffer/tmp_buffer.h>
 
 template<typename... C>
 struct Require {
@@ -88,7 +88,7 @@ struct FilteredEntities;
 template<typename... Component>
 requires(sizeof...(Component) > 1)
 struct FilteredEntities<AND<Components<Component...>>> {
-    static std::vector<Entity> ents(const World& world) {
+    static TmpBufferVector ents(const World& world) {
         ECS_PROFILER(ZoneScoped);
 
         std::vector<EntitiesWrapper> ents_by_comps{world.entities<Component>()...};
@@ -103,23 +103,27 @@ struct FilteredEntities<AND<Components<Component...>>> {
 
 template<typename Component>
 struct FilteredEntities<AND<Components<Component>>> {
-    static std::vector<Entity> ents(const World& world) {
+    static TmpBufferVector ents(const World& world) {
         ECS_PROFILER(ZoneScoped);
-        return world.entities<Component>();
+        const auto& entities = world.entities<Component>();
+        auto        result   = TmpBuffer::get<std::vector<Entity>>();
+        result->insert(result->end(), entities.begin(), entities.end());
+
+        return result;
     }
 };
 
 template<>
 struct FilteredEntities<AND<Components<>>> {
     FilteredEntities(const World& /*unused*/) {}
-    static std::vector<Entity> ents(const World& /*world*/) { return {}; }
+    static TmpBufferVector ents(const World& /*world*/) { return TmpBuffer::get<std::vector<Entity>>(); }
 };
 
 
 template<typename... Component>
 requires(sizeof...(Component) > 1)
 struct FilteredEntities<OR<Components<Component...>>> {
-    static std::vector<Entity> ents(const World& world) {
+    static TmpBufferVector ents(const World& world) {
         ECS_PROFILER(ZoneScoped);
 
         std::vector<EntitiesWrapper> ents_by_comps{world.entities<Component>()...};
@@ -134,14 +138,18 @@ struct FilteredEntities<OR<Components<Component...>>> {
 
 template<typename Component>
 struct FilteredEntities<OR<Components<Component>>> {
-    static std::vector<Entity> ents(const World& world) {
+    static TmpBufferVector ents(const World& world) {
         ECS_PROFILER(ZoneScoped);
-        return world.entities<Component>();
+        const auto& entities = world.entities<Component>();
+        auto        result   = TmpBuffer::get<std::vector<Entity>>();
+        result->insert(result->end(), entities.begin(), entities.end());
+
+        return result;
     }
 };
 
 
 template<>
 struct FilteredEntities<OR<Components<>>> {
-    static std::vector<Entity> ents(const World& /*world*/) { return {}; }
+    static TmpBufferVector ents(const World& /*world*/) { return TmpBuffer::get<std::vector<Entity>>(); }
 };

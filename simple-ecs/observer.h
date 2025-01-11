@@ -63,7 +63,8 @@ struct Observer final : NoCopyNoMove {
 
         auto filtered = FilteredEntities<AND<Require>>::ents(m_world);
         auto excluded = FilteredEntities<OR<Exclude>>::ents(m_world);
-        m_entities    = filtered - excluded;
+        auto result   = std::move(filtered) - std::move(excluded);
+        m_entities.swap(*result);
     }
 
     Registry* getRegistry() const noexcept { return m_world.getRegistry(); }

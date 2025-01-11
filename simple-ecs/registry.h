@@ -65,6 +65,14 @@ struct Registry final : NoCopyNoMove {
     ~Registry() {
         ECS_PROFILER(ZoneScoped);
 
+        for (auto& thread : m_observers_threads) {
+            thread.request_stop();
+        }
+
+        m_observers_sync.store(!m_observers_sync);
+        m_observers_sync.notify_all();
+        m_observers_threads.clear();
+
         for (const auto& system : std::views::values(m_systems)) {
             system->stop(*this);
         }
@@ -257,9 +265,13 @@ struct Registry final : NoCopyNoMove {
 
         assert(m_init_callbacks.empty() && "all systems must be initialized");
 
-        auto tasks =
-          TASKS_PARALLEL<TASKS_PRIORITY::HIGHEST>(m_observers, [](const std::function<void()>& f) { std::invoke(f); });
-        TASKS_WAIT(tasks);
+        m_observers_counter.store(0, std::memory_order_relaxed);
+        m_observers_sync.store(!m_observers_sync);
+        m_observers_sync.notify_all();
+
+        while (m_observers_counter.load(std::memory_order_relaxed) != m_observers_threads.size()) {
+            std::this_thread::yield();
+        }
 
         for (const auto& function : m_functions) {
             function();
@@ -344,14 +356,22 @@ private:
 
     template<typename Filter>
     void registerObserver() {
-        if (m_observers.size() == detail::registry::sequenceID<Filter>()) {
-            m_observers.emplace_back([&world = m_world]() { detail::registry::observers<Filter>(world).refresh(); });
-        }
+        m_observers_threads.emplace_back([this](const std::stop_token& stoken) {
+            while (true) {
+                m_observers_sync.wait(m_observers_sync);
+
+                if (stoken.stop_requested()) {
+                    return;
+                }
+
+                detail::registry::observers<Filter>(m_world).refresh();
+                m_observers_counter.fetch_add(1, std::memory_order_relaxed);
+            }
+        });
     };
 
 private:
     World&                                                  m_world;
-    std::vector<std::function<void(void)>>                  m_observers;
     std::vector<Function>                                   m_functions;
     std::queue<std::function<void(void)>>                   m_init_callbacks;
     std::queue<std::function<void(void)>>                   m_cleanup_callbacks;
@@ -359,4 +379,8 @@ private:
     std::unordered_map<SystemID, std::vector<std::jthread>> m_parallel_jobs;
     std::atomic_bool                                        m_frame_ready;
     Serializer                                              m_serializer;
+
+    std::vector<std::jthread> m_observers_threads;
+    std::atomic_uint32_t      m_observers_counter;
+    std::atomic_bool          m_observers_sync;
 };

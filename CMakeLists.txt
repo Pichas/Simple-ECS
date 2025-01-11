@@ -47,7 +47,7 @@ add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
-target_link_libraries(${PROJECT_NAME} PUBLIC spdlog CT-Utils Tasks)
+target_link_libraries(${PROJECT_NAME} PUBLIC spdlog CT-Utils Tasks TempBuffer)
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(ECS_ENABLE_PROFILER)
