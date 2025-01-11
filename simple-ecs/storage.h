@@ -18,7 +18,8 @@ struct StorageBase : SparseSet {
     decltype(auto)             size() const noexcept { return m_entities.size(); }
     decltype(auto)             empty() const noexcept { return m_entities.empty(); }
 
-    virtual void remove(Entity e) = 0;
+    virtual void remove(Entity e)                     = 0;
+    virtual void remove(std::span<const Entity> ents) = 0;
 
     ECS_DEBUG_ONLY(IDType id() const noexcept { return m_id; })
     ECS_DEBUG_ONLY(std::string name() const noexcept { return m_string_name; })
@@ -62,6 +63,7 @@ struct Storage final : StorageBase {
     };
 
     void remove(Entity e) override { erase(e); }
+    void remove(std::span<const Entity> ents) override { erase(ents); }
 
     void addEmplaceCallback(Callback&& func) { m_on_construct_callbacks.emplace_back(std::forward<Callback>(func)); }
     void addDestroyCallback(Callback&& func) { m_on_destroy_callbacks.emplace_back(std::forward<Callback>(func)); }
@@ -69,15 +71,16 @@ struct Storage final : StorageBase {
     template<typename... Args>
     requires std::is_constructible_v<Component, Args...>
     ECS_FORCEINLINE void emplace(Entity e, Args&&... args) {
-        ECS_PROFILER(ZoneScoped);
-
         if (SparseSet::emplace(e)) {
-            if constexpr (!std::is_empty_v<Component>) {
-                m_components.emplace_back(std::forward<Args>(args)...);
-            }
+            ECS_PROFILER(ZoneScoped);
 
             auto lower = std::ranges::lower_bound(m_entities, e);
             m_entities.insert(lower, e);
+
+            if constexpr (!std::is_empty_v<Component>) {
+                m_components.emplace_back(std::forward<Args>(args)...);
+                m_is_optimised &= lower == m_entities.end();
+            }
 
             for (const auto& function : m_on_construct_callbacks) { // do something after construct
                 if constexpr (std::is_empty_v<Component>) {
@@ -90,27 +93,27 @@ struct Storage final : StorageBase {
     }
 
     ECS_FORCEINLINE void erase(Entity e) {
+        if (!has(e)) {
+            return;
+        }
+
         ECS_PROFILER(ZoneScoped);
 
-        if (has(e)) {
-            eraseOne(e);
+        eraseOne(e);
 
-            auto lower = std::ranges::lower_bound(m_entities, e);
-            m_entities.erase(lower);
-        }
+        auto lower = std::ranges::lower_bound(m_entities, e);
+        m_entities.erase(lower);
     }
 
     ECS_FORCEINLINE void erase(std::span<const Entity> ents) {
-        ECS_PROFILER(ZoneScoped);
-
         if (ents.empty()) {
             return;
         }
 
+        ECS_PROFILER(ZoneScoped);
+
         for (const Entity& e : ents) {
-            if (has(e)) {
-                eraseOne(e);
-            }
+            eraseOne(e);
         }
 
         static std::vector<Entity> result;
@@ -143,32 +146,37 @@ struct Storage final : StorageBase {
     }
 
     bool optimise() override {
-        ECS_PROFILER(ZoneScoped);
-
         if constexpr (std::is_empty_v<Component>) {
             return true;
         } else {
-            if (m_dense.empty()) {
+            if (m_dense.empty() || m_is_optimised) {
                 return true;
             }
 
-            bool sorted = true;
-            // make one sort pass to avoid long block
+            ECS_PROFILER(ZoneScoped);
+
+            m_is_optimised = true;
+            // make one sort pass to avoid blocks
             for (auto it = std::next(m_dense.begin()); it < m_dense.end(); ++it) {
                 if (*std::prev(it) > *it) {
                     auto prev = std::prev(it);
                     std::swap(m_components[m_sparse[*prev]], m_components[m_sparse[*it]]);
                     std::swap(m_sparse[*prev], m_sparse[*it]);
                     std::iter_swap(prev, it);
-                    sorted = false;
+                    m_is_optimised = false;
                 }
             }
-            return sorted;
+
+            return m_is_optimised;
         }
     }
 
 private:
     ECS_FORCEINLINE void eraseOne(Entity e) {
+        if (!has(e)) {
+            return;
+        }
+
         ECS_PROFILER(ZoneScoped);
 
         for (const auto& function : m_on_destroy_callbacks) { // do something before remove
@@ -191,4 +199,5 @@ private:
     std::vector<Component> m_components;
     std::vector<Callback>  m_on_destroy_callbacks;
     std::vector<Callback>  m_on_construct_callbacks;
+    bool                   m_is_optimised = true;
 };

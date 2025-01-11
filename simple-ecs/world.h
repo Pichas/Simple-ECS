@@ -10,7 +10,6 @@
 #include <list>
 #include <map>
 #include <memory>
-#include <ranges>
 #include <span>
 #include <vector>
 
@@ -256,21 +255,18 @@ struct World final : NoCopyNoMove {
     [[nodiscard]] Entity create() {
         ECS_PROFILER(ZoneScoped);
 
-        if (m_free_entities.empty()) {
-            m_free_entities.emplace_back(m_entities.size());
-        }
-
         Entity entity = 0;
-        if (m_free_entities.front() > m_free_entities.back()) {
-            entity = m_free_entities.front();
-            m_free_entities.pop_front();
+
+        if (m_free_entities.empty()) [[unlikely]] {
+            entity = m_entities.size();
+            m_entities.emplace_back(entity);
         } else {
             entity = m_free_entities.back();
             m_free_entities.pop_back();
-        }
 
-        auto lower = std::ranges::lower_bound(m_entities, entity);
-        m_entities.insert(lower, entity);
+            auto lower = std::ranges::lower_bound(m_entities, entity);
+            m_entities.insert(lower, entity);
+        }
 
         notify(entity);
         return entity;
@@ -278,32 +274,35 @@ struct World final : NoCopyNoMove {
 
     void destroy(Entity e) {
         ECS_PROFILER(ZoneScoped);
-
-        auto it = std::ranges::find(m_entities_to_destroy, e);
-        if (it == m_entities_to_destroy.end()) {
-            m_entities_to_destroy.emplace_back(e);
-        }
+        m_entities_to_destroy.emplace_back(e);
     }
 
     void destroy(std::span<const Entity> entities) {
         ECS_PROFILER(ZoneScoped);
-
-        for (auto entity : entities) {
-            destroy(entity);
-        }
+        m_entities_to_destroy.insert(m_entities_to_destroy.end(), entities.begin(), entities.end());
     }
 
     void flush() {
         ECS_PROFILER(ZoneScoped);
 
-        for (auto entity : std::views::reverse(m_entities_to_destroy)) {
-            ECS_ASSERT(isAlive(entity), "Entity doesn't exist");
-            for (auto& storage : m_storages) {
-                storage->remove(entity);
-            }
+        if (m_entities_to_destroy.empty()) {
+            return;
+        }
 
-            std::erase(m_entities, entity);
-            if (!m_free_entities.empty() && m_free_entities.front() > entity) {
+        if (m_entities_to_destroy.size() > 1) {
+            std::ranges::sort(m_entities_to_destroy);
+            const auto [first, last] = std::ranges::unique(m_entities_to_destroy);
+            m_entities_to_destroy.erase(first, last);
+        }
+
+        for (auto& storage : m_storages) {
+            storage->remove(m_entities_to_destroy);
+        }
+
+        for (auto entity : m_entities_to_destroy) {
+            ECS_ASSERT(isAlive(entity), "Entity doesn't exist");
+
+            if (!m_free_entities.empty() && m_free_entities.back() < entity) {
                 m_free_entities.emplace_back(entity);
             } else {
                 m_free_entities.emplace_front(entity);
@@ -311,6 +310,18 @@ struct World final : NoCopyNoMove {
 
             notify(entity);
         }
+
+        if (m_entities_to_destroy.size() > 1) {
+            static std::vector<Entity> result;
+            result.reserve(m_entities.size());
+            std::ranges::set_difference(m_entities, m_entities_to_destroy, std::back_inserter(result));
+            m_entities.swap(result);
+            result.clear();
+        } else {
+            auto pos = std::ranges::lower_bound(m_entities, m_entities_to_destroy.at(0));
+            m_entities.erase(pos);
+        }
+
         m_entities_to_destroy.clear();
     }
 

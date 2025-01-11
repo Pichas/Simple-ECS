@@ -12,6 +12,7 @@
 #include <chrono>
 #include <functional>
 #include <queue>
+#include <ranges>
 #include <thread>
 #include <utility>
 

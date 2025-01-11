@@ -4,6 +4,8 @@
 #include <spdlog/stopwatch.h>
 #include <algorithm>
 #include <cassert>
+#include <ranges>
+
 
 namespace detail::serializer
 {
