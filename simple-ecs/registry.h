@@ -37,28 +37,6 @@
 #define ECS_JOB_STOP false
 #define ECS_JOB bool
 
-namespace detail::registry
-{
-
-inline IDType nextID() {
-    static IDType id = 0;
-    return id++;
-}
-
-template<typename T>
-inline IDType sequenceID() {
-    static IDType id = nextID();
-    return id;
-};
-
-template<typename Filter>
-inline Observer<Filter>& observers(World& world) {
-    static Observer<Filter> observer{world};
-    return observer;
-};
-
-} // namespace detail::registry
-
 
 struct Registry final : NoCopyNoMove {
     Registry(World& world) : m_world(world), m_frame_ready(false), m_serializer(m_world), m_observer_manager(world) {}
@@ -297,14 +275,14 @@ private:
                  void (System::*f)(OBSERVER(Filters)...),
                  System* obj,
                  World&  world)
-          : m_function([f, obj, &world] { std::invoke(f, obj, detail::registry::observers<Filters>(world)...); })
+          : m_function([f, obj, &world] { std::invoke(f, obj, ObserverManager::observers<Filters>(world)...); })
           , m_id(id){};
 
         template<typename... Filters>
         Function(ECS_FINAL_SWITCH(std::uint32_t, std::string_view) id, //
                  void (*f)(OBSERVER(Filters)...),
                  World& world)
-          : m_function([f, &world] { std::invoke(f, detail::registry::observers<Filters>(world)...); }), m_id(id) {}
+          : m_function([f, &world] { std::invoke(f, ObserverManager::observers<Filters>(world)...); }), m_id(id) {}
 
         void operator()() const {
             ECS_PROFILER(ZoneScoped);

@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "simple-ecs/observer.h"
 #include "simple-ecs/utils.h"
 
@@ -19,18 +18,27 @@ inline IDType sequenceID() {
     return id;
 };
 
-
 } // namespace detail::observer
 
 
 struct ObserverManager : NoCopyNoMove {
     static inline size_t thread_count = std::thread::hardware_concurrency();
 
+    template<typename Filter>
+    ECS_FORCEINLINE static Observer<Filter>& observers(World& world) {
+        static Observer<Filter> observer{world};
+        return observer;
+    };
+
     ObserverManager(World& world) {
         m_threads.reserve(thread_count);
 
         for (size_t i = 0; i < thread_count; ++i) {
-            m_threads.emplace_back([this, &world, index = i](const std::stop_token& stoken) {
+            std::atomic_bool is_started = false;
+            m_threads.emplace_back([this, &world, index = i, &is_started](const std::stop_token& stoken) {
+                is_started = true;
+                is_started.notify_one();
+
                 while (true) {
                     m_sync.wait(m_sync);
 
@@ -46,6 +54,9 @@ struct ObserverManager : NoCopyNoMove {
                     }
                 }
             });
+            // when the game is small, it can start processing systems before init threads
+            // so we have to wait all threads to be started
+            is_started.wait(false);
         };
     };
 
@@ -79,13 +90,6 @@ struct ObserverManager : NoCopyNoMove {
         m_functions.emplace_back([](World& world) { observers<Filter>(world).refresh(); });
     };
 
-
-private:
-    template<typename Filter>
-    ECS_FORCEINLINE static Observer<Filter>& observers(World& world) {
-        static Observer<Filter> observer{world};
-        return observer;
-    };
 
 private:
     std::vector<std::jthread>                m_threads;

@@ -138,7 +138,7 @@ ECS_FORCEINLINE static TmpBufferVector operator&(const std::vector<T>& lhs, TmpB
     return lhs & *rhs;
 }
 
-ECS_FORCEINLINE static TmpBufferVector operator-(TmpBufferVector lhs, TmpBufferVector rhs) {
+ECS_FORCEINLINE static TmpBufferVector operator-(TmpBufferVector lhs, TmpBufferVector rhs) { // NOLINT
     if (lhs->empty()) {
         return TMP_GET(std::vector<Entity>);
     }
