@@ -4,16 +4,17 @@
 #include "tools/profiler.h"
 #include "tools/sparse_set.h"
 
-
 #include <algorithm>
+#include <shared_mutex>
 #include <span>
+
 
 struct StorageBase : SparseSet, NoCopyNoMove {
     StorageBase()           = default;
     ~StorageBase() override = default;
 
     ECS_FORCEINLINE const std::vector<Entity>& entities() const noexcept {
-        std::lock_guard _(m_mutex);
+        std::shared_lock _(m_mutex);
         return m_entities;
     }
 
@@ -29,8 +30,8 @@ struct StorageBase : SparseSet, NoCopyNoMove {
     virtual bool optimise() = 0;
 
 protected:
-    ECS_PROFILER(mutable TracyLockable(std::mutex, m_mutex));
-    ECS_NO_PROFILER(mutable std::mutex m_mutex);
+    ECS_PROFILER(mutable TracySharedLockable(std::shared_mutex, m_mutex));
+    ECS_NO_PROFILER(mutable std::shared_mutex m_mutex);
 
     std::vector<Entity> m_entities;
 
@@ -62,9 +63,7 @@ struct Storage final : StorageBase {
         ECS_PROFILER(ZoneScoped);
 
         // clean memory to avoid memory leak report
-        while (!m_entities.empty()) {
-            erase(m_entities.back());
-        }
+        erase(m_entities);
     };
 
     void remove(Entity e) override { erase(e); }
@@ -84,7 +83,7 @@ struct Storage final : StorageBase {
             m_is_optimised &= lower == m_entities.end();
 
             {
-                std::lock_guard _(m_mutex);
+                std::unique_lock _(m_mutex);
                 m_entities.insert(lower, e);
             }
 
@@ -104,7 +103,7 @@ struct Storage final : StorageBase {
 
     template<typename... Args>
     requires std::is_constructible_v<Component, Args...>
-    ECS_FORCEINLINE void emplace(std::span<const Entity> ents, Args&&... args) {
+    ECS_FORCEINLINE void emplace(std::span<const Entity> ents, Args&&... args) { // NOLINT
         for (const Entity& e : ents) {
             emplace(e, args...); // make a copy for all elements
         }
@@ -121,7 +120,7 @@ struct Storage final : StorageBase {
         eraseOne(e);
         auto lower = std::ranges::lower_bound(m_entities, e);
 
-        std::lock_guard _(m_mutex);
+        std::unique_lock _(m_mutex);
         m_entities.erase(lower);
     }
 
@@ -136,13 +135,12 @@ struct Storage final : StorageBase {
             eraseOne(e);
         }
 
-        static std::vector<Entity> result;
-        result.clear();
-        result.reserve(m_entities.size());
-        std::ranges::set_difference(m_entities, ents, std::back_inserter(result));
+        auto result = TMP_GET(std::vector<Entity>);
+        result->reserve(m_entities.size());
+        std::ranges::set_difference(m_entities, ents, std::back_inserter(*result));
 
-        std::lock_guard _(m_mutex);
-        m_entities.swap(result);
+        std::unique_lock _(m_mutex);
+        m_entities.swap(*result);
     }
 
 

@@ -134,11 +134,11 @@ private:
 
 private:
     std::vector<std::jthread>                       m_threads;
+    std::vector<std::atomic_bool>                   m_threads_control;
     std::vector<std::function<void(World&)>>        m_functions;
     std::atomic_bool                                m_sync;
     std::unordered_map<size_t, std::vector<size_t>> m_funcs_to_observers;
     std::unordered_map<size_t, size_t>              m_observers_in_use;
-    std::vector<std::atomic_bool>                   m_threads_control;
 
     ECS_PROFILER(TracySharedLockable(std::shared_mutex, m_mutex));
     ECS_NO_PROFILER(std::shared_mutex m_mutex);

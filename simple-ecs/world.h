@@ -47,12 +47,16 @@ struct World final : NoCopyNoMove {
     const std::map<std::string, Component>& registeredComponentNames() const noexcept { return m_component_name; }
     bool isAlive(Entity e) const noexcept { return std::ranges::binary_search(m_entities, e); }
     bool isAlive(std::span<const Entity> ents) const noexcept {
+        if (ents.empty()) {
+            return true;
+        }
+
         auto buffer = TMP_GET(std::vector<Entity>);
         buffer->insert(buffer->end(), ents.begin(), ents.end());
         std::ranges::sort(*buffer);
         auto left  = std::ranges::lower_bound(m_entities, buffer->front());
         auto right = std::ranges::lower_bound(m_entities, buffer->back());
-        return std::distance(left, right) == static_cast<long>(buffer->size());
+        return std::distance(left, std::next(right)) == static_cast<long>(buffer->size());
     }
 
     template<typename Component>

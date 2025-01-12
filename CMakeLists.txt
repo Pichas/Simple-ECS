@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(SimpleECS VERSION 1.3.1 LANGUAGES CXX)
+project(SimpleECS VERSION 1.4.0 LANGUAGES CXX)
 
 option(ECS_FINAL "Final build without any debug info" OFF)
 option(ECS_ENABLE_IMGUI "Enable ImGui related code" OFF)
