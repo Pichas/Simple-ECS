@@ -16,6 +16,7 @@
 
 namespace detail::world
 {
+
 inline IDType nextID() {
     static IDType id = 0;
     return id++;
@@ -26,7 +27,9 @@ inline IDType sequenceID() {
     static IDType id = nextID();
     return id;
 };
+
 } // namespace detail::world
+
 
 struct Registry;
 
@@ -43,6 +46,14 @@ struct World final : NoCopyNoMove {
     const std::vector<Entity>&              entities() const noexcept { return m_entities; }
     const std::map<std::string, Component>& registeredComponentNames() const noexcept { return m_component_name; }
     bool isAlive(Entity e) const noexcept { return std::ranges::binary_search(m_entities, e); }
+    bool isAlive(std::span<const Entity> ents) const noexcept {
+        auto buffer = TMP_GET(std::vector<Entity>);
+        buffer->insert(buffer->end(), ents.begin(), ents.end());
+        std::ranges::sort(*buffer);
+        auto left  = std::ranges::lower_bound(m_entities, buffer->front());
+        auto right = std::ranges::lower_bound(m_entities, buffer->back());
+        return std::distance(left, right) == static_cast<long>(buffer->size());
+    }
 
     template<typename Component>
     void addEmplaceCallback(Storage<Component>::Callback&& f) {
@@ -99,126 +110,83 @@ struct World final : NoCopyNoMove {
         assert(was_added);
     }
 
-    template<typename Component>
-    ECS_FORCEINLINE bool has(Entity e) noexcept {
+    template<typename Component, EcsTarget Target>
+    ECS_FORCEINLINE bool has(Target target) noexcept {
         ECS_PROFILER(ZoneScoped);
 
         ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
-        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
+        ECS_ASSERT(isAlive(target), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
-        return storage->has(e);
+        return storage->has(target);
     }
 
-    template<typename Component, typename Type = std::remove_cvref_t<Component>>
+
+    template<typename Component, EcsTarget Target, typename Type = std::remove_cvref_t<Component>>
     requires(!std::is_empty_v<Type>)
-    ECS_FORCEINLINE void emplace(Entity e, Component&& c) {
+    ECS_FORCEINLINE void emplace(Target target, Component&& c) {
         ECS_PROFILER(ZoneScoped);
 
         ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Type>(), "Storage doesn't exist");
-        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
+        ECS_ASSERT(isAlive(target), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Type>*>(m_storages.at(detail::world::sequenceID<Type>()).get());
-        storage->emplace(e, std::forward<Component>(c));
-        notify(e);
+        storage->emplace(target, std::forward<Component>(c));
+        notify(target);
     }
 
-    template<typename Component, typename... Args>
-    ECS_FORCEINLINE void emplace(Entity e, Args&&... args) {
+    template<typename Component, typename... Args, EcsTarget Target>
+    ECS_FORCEINLINE void emplace(Target target, Args&&... args) {
         ECS_PROFILER(ZoneScoped);
 
         ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
-        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
+        ECS_ASSERT(isAlive(target), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
-        storage->emplace(e, std::forward<Args>(args)...);
-        notify(e);
+        storage->emplace(target, std::forward<Args>(args)...);
+        notify(target);
     }
 
-    template<typename Component, typename Type = std::remove_cvref_t<Component>>
+    template<typename Component, EcsTarget Target, typename Type = std::remove_cvref_t<Component>>
     requires(!std::is_empty_v<Type>)
-    ECS_FORCEINLINE void forceEmplace(Entity e, Component&& c) {
+    ECS_FORCEINLINE void emplaceTagged(Target target, Component&& c) {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Type>(), "Storage doesn't exist");
-        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto* storage = static_cast<Storage<Type>*>(m_storages.at(detail::world::sequenceID<Type>()).get());
-        storage->erase(e);
-        storage->emplace(e, std::forward<Component>(c));
-        notify(e);
+        emplace<Type>(target, std::forward<Component>(c));
+        markUpdated<Type>(target);
     }
 
-    template<typename Component, typename... Args>
-    ECS_FORCEINLINE void forceEmplace(Entity e, Args&&... args) {
+    template<typename Component, typename... Args, EcsTarget Target>
+    ECS_FORCEINLINE void emplaceTagged(Target target, Args&&... args) {
         ECS_PROFILER(ZoneScoped);
 
-        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
-        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
-        storage->erase(e);
-        storage->emplace(e, std::forward<Args>(args)...);
-        notify(e);
+        emplace<Component>(target, std::forward<Args>(args)...);
+        markUpdated<Component>(target);
     }
 
-    template<typename Component, typename Type = std::remove_cvref_t<Component>>
-    requires(!std::is_empty_v<Type>)
-    ECS_FORCEINLINE void emplaceTagged(Entity e, Component&& c) {
-        ECS_PROFILER(ZoneScoped);
-
-        emplace<Type>(e, std::forward<Component>(c));
-        markUpdated<Type>(e);
-    }
-
-    template<typename Component, typename... Args>
-    ECS_FORCEINLINE void emplaceTagged(Entity e, Args&&... args) {
-        ECS_PROFILER(ZoneScoped);
-
-        emplace<Component>(e, std::forward<Args>(args)...);
-        markUpdated<Component>(e);
-    }
-
-    template<typename Component>
-    ECS_FORCEINLINE void markUpdated(Entity e) {
+    template<typename Component, EcsTarget Target>
+    ECS_FORCEINLINE void markUpdated(Target target) {
         ECS_PROFILER(ZoneScoped);
 
         using Tag = Updated<Component>;
-        ECS_ASSERT(has<Component>(e), "Entity should have Component before you can marked it as Updated");
-        emplace<Tag>(e);
+        ECS_ASSERT(has<Component>(target), "Entity should have Component before you can marked it as Updated");
+        emplace<Tag>(target);
     }
 
-    template<typename Component>
-    ECS_FORCEINLINE void clearUpdateTag(Entity e) {
+    template<typename Component, EcsTarget Target>
+    ECS_FORCEINLINE void clearUpdateTag(Target target) {
         ECS_PROFILER(ZoneScoped);
 
         using Tag = Updated<Component>;
-        erase<Tag>(e);
+        erase<Tag>(target);
     }
 
-    template<typename Component>
-    ECS_FORCEINLINE void clearUpdateTag(std::span<const Entity> ents) {
-        ECS_PROFILER(ZoneScoped);
-
-        using Tag = Updated<Component>;
-        erase<Tag>(ents);
-    }
-
-    template<typename Component>
-    ECS_FORCEINLINE void erase(Entity e) {
+    template<typename Component, EcsTarget Target>
+    ECS_FORCEINLINE void erase(Target target) {
         ECS_PROFILER(ZoneScoped);
 
         ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
-        ECS_ASSERT(isAlive(e), "Entity doesn't exist");
+        ECS_ASSERT(isAlive(target), "Entity doesn't exist");
         auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
-        storage->erase(e);
-        notify(e);
-    }
-
-    template<typename Component>
-    ECS_FORCEINLINE void erase(std::span<const Entity> ents) {
-        ECS_PROFILER(ZoneScoped);
-
-        ECS_ASSERT(m_storages.size() > detail::world::sequenceID<Component>(), "Storage doesn't exist");
-        ECS_ASSERT(std::ranges::all_of(ents, [this](const Entity& e) { return isAlive(e); }), "Entity doesn't exist");
-        auto* storage = static_cast<Storage<Component>*>(m_storages.at(detail::world::sequenceID<Component>()).get());
-        storage->erase(ents);
-        notify(ents);
+        storage->erase(target);
+        notify(target);
     }
 
     template<typename Component>

@@ -9,19 +9,18 @@
 
 namespace detail
 {
+
 template<typename... Component>
 struct ComponentsTuple;
 
-template<typename Observer, typename... Component>
-struct ComponentsTuple<Observer, Components<Component...>> {
-    using Tuple = std::tuple<Component&...>;
-    static Tuple create(const Observer& observer, Entity e) { return {observer.template get<Component>(e)...}; }
-
-    using ConstTuple = std::tuple<const Component&...>;
-    static ConstTuple createConst(const Observer& observer, Entity e) {
-        return {observer.template get<Component>(e)...};
+template<typename... Component>
+struct ComponentsTuple<Components<Component...>> {
+    template<typename EntityWrapper>
+    static auto create(EntityWrapper&& e) {
+        return std::make_tuple<Component&...>(std::forward<EntityWrapper>(e).template get<Component>()...);
     }
 };
+
 } // namespace detail
 
 
@@ -37,68 +36,65 @@ struct EntityWrapper final {
     ~EntityWrapper() noexcept                          = default;
 
     operator Entity() const noexcept { return m_entity; }
-    decltype(auto) get() {
-        return detail::ComponentsTuple<Observer, RemoveEmpty_t<RemoveTags_t<Require>>>::create(m_observer, m_entity);
+    Entity entity() const noexcept { return m_entity; }
+
+    decltype(auto) get() const { return detail::ComponentsTuple<RemoveEmpty_t<RemoveTags_t<Require>>>::create(*this); }
+
+    ECS_FORCEINLINE bool isAlive() const noexcept { return m_observer.isAlive(m_entity); }
+    ECS_FORCEINLINE void destroy() const { m_observer.destroy(m_entity); }
+
+    template<typename Component>
+    ECS_FORCEINLINE bool has() const noexcept {
+        return m_observer.template has<Component>(m_entity);
     }
-    decltype(auto) get() const {
-        return detail::ComponentsTuple<Observer, RemoveEmpty_t<RemoveTags_t<Require>>>::createConst(m_observer,
-                                                                                                    m_entity);
-    }
-    ECS_FORCEINLINE bool isAlive() const noexcept { return m_observer.isAlive(*this); }
-    ECS_FORCEINLINE void destroy() const { m_observer.destroy(*this); }
 
     template<typename Component>
     requires(!std::is_empty_v<Component>)
     ECS_FORCEINLINE void emplace(Component&& c) const {
-        m_observer.template emplace<Component>(*this, std::forward<Component>(c));
+        m_observer.template emplace<Component>(m_entity, std::forward<Component>(c));
     }
 
-    template<typename Component, typename... Args>
+    template<typename... Component, typename... Args>
     ECS_FORCEINLINE void emplace(Args&&... args) const {
-        m_observer.template emplace<Component>(*this, std::forward<Args>(args)...);
-    }
-
-    template<typename Component>
-    ECS_FORCEINLINE bool has() const noexcept {
-        return m_observer.template has<Component>(*this);
+        m_observer.template emplace<Component...>(m_entity, std::forward<Args>(args)...);
     }
 
     template<typename Component>
     requires(!std::is_empty_v<Component>)
     ECS_FORCEINLINE void emplaceTagged(Component&& c) const {
-        m_observer.template emplaceTagged<Component>(*this, std::forward<Component>(c));
+        m_observer.template emplaceTagged<Component>(m_entity, std::forward<Component>(c));
     }
 
-    template<typename Component, typename... Args>
+    template<typename... Component, typename... Args>
     ECS_FORCEINLINE void emplaceTagged(Args&&... args) const {
-        m_observer.template emplaceTagged<Component>(*this, std::forward<Args>(args)...);
+        m_observer.template emplaceTagged<Component...>(m_entity, std::forward<Args>(args)...);
     }
 
     template<typename... Component>
     ECS_FORCEINLINE void markUpdated() const {
-        (m_observer.template markUpdated<Component>(*this), ...);
+        m_observer.template markUpdated<Component...>(m_entity);
     }
 
     template<typename... Component>
     ECS_FORCEINLINE void clearUpdateTag() const {
-        (m_observer.template clearUpdateTag<Component>(*this), ...);
+        m_observer.template clearUpdateTag<Component...>(m_entity);
     }
 
     template<typename... Component>
     ECS_FORCEINLINE void erase() const {
-        (m_observer.template erase<Component>(*this), ...);
+        m_observer.template erase<Component...>(m_entity);
     }
 
     template<typename Component>
     requires(!std::is_empty_v<Component>)
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) get() const noexcept {
-        return m_observer.template get<Component>(*this);
+        return m_observer.template get<Component>(m_entity);
     }
 
     template<typename Component>
     requires(!std::is_empty_v<Component>)
     [[nodiscard]] ECS_FORCEINLINE decltype(auto) tryGet() const noexcept {
-        return m_observer.template tryGet<Component>(*this);
+        return m_observer.template tryGet<Component>(m_entity);
     }
 
 private:

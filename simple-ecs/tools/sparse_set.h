@@ -5,11 +5,16 @@
 #include <cassert>
 #include <vector>
 
+
 struct SparseSet {
     virtual ~SparseSet() = default;
 
     ECS_FORCEINLINE bool has(Entity e) const noexcept {
         return e < m_sparse.size() && m_sparse[e] < m_dense.size() && m_dense[m_sparse[e]] == e;
+    }
+
+    ECS_FORCEINLINE bool has(std::span<const Entity> ents) const noexcept {
+        return std::ranges::all_of(ents, [this](Entity e) { return has(e); });
     }
 
     ECS_FORCEINLINE bool emplace(Entity e) {

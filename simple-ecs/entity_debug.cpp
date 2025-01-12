@@ -10,7 +10,7 @@
 
 EntityDebugSystem::EntityDebugSystem(World& world) : m_world(world) {}
 
-void EntityDebugSystem::setup(Registry& reg) { // NOLINT
+void EntityDebugSystem::setup([[maybe_unused]] Registry& reg) {
     ECS_PROFILER(ZoneScoped);
 
     ECS_NOT_FINAL_ONLY(ECS_REG_FUNC(reg, EntityDebugSystem::trackEntitiesCount));
@@ -182,7 +182,7 @@ void EntityDebugSystem::showEntityListUI() {
 #endif
 }
 
-bool EntityDebugSystem::showEntityInfoUI(Entity e) { // NOLINT
+bool EntityDebugSystem::showEntityInfoUI([[maybe_unused]] Entity e) {
     ECS_PROFILER(ZoneScoped);
 
 #ifdef ECS_ENABLE_IMGUI

@@ -78,6 +78,11 @@ struct NoCopyNoMove {
     NoCopyNoMove& operator=(NoCopyNoMove&&)      = delete;
 };
 
+template<typename Target>
+concept EcsTarget = std::disjunction_v<std::is_same<Target, Entity>, std::is_same<Target, std::span<const Entity>>>;
+
+using TmpBufferVector = decltype(TMP_GET(std::vector<Entity>));
+using EntitiesWrapper = std::reference_wrapper<const std::vector<Entity>>;
 
 template<typename T>
 constexpr std::string serializeId() {
@@ -85,7 +90,6 @@ constexpr std::string serializeId() {
     return {std::launder(reinterpret_cast<const char* const>(&id)), sizeof(id)};
 }
 
-using TmpBufferVector = decltype(TMP_GET(std::vector<Entity>));
 
 // operators
 template<typename T>

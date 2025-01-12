@@ -20,10 +20,10 @@ struct HP {
 
 using PlayerArchetype = Archetype<Name, HP, Damage, Player>;
 struct PlayerType : PlayerArchetype {
-    PlayerType() : PlayerArchetype({"Player"}, {100}, {3}) {};
+    PlayerType() : PlayerArchetype({"Player"}, {100}, {3}){};
 };
 
 using BossArchetype = Archetype<Name, HP, Damage, Boss>;
 struct BossType : BossArchetype {
-    BossType() : BossArchetype({"Boss"}, {1000}, {10}) {};
+    BossType() : BossArchetype({"Boss"}, {1000}, {10}){};
 };

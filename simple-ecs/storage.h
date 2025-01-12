@@ -102,6 +102,15 @@ struct Storage final : StorageBase {
         }
     }
 
+    template<typename... Args>
+    requires std::is_constructible_v<Component, Args...>
+    ECS_FORCEINLINE void emplace(std::span<const Entity> ents, Args&&... args) {
+        for (const Entity& e : ents) {
+            emplace(e, args...); // make a copy for all elements
+        }
+    }
+
+
     ECS_FORCEINLINE void erase(Entity e) {
         if (!has(e)) {
             return;

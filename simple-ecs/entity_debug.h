@@ -35,7 +35,7 @@ struct ScrollingBuffer : public NoCopyNoMove {
 
 template<typename Component>
 requires(std::is_empty_v<Component>)
-void debug(World& w, Entity e) { // NOLINT
+void debug([[maybe_unused]] World& w, [[maybe_unused]] Entity e) {
 #ifdef ECS_ENABLE_IMGUI
     if (w.has<Component>(e)) {
         ImGui::PushID(ct::name<Component>.data());
@@ -60,7 +60,7 @@ struct Name {
 };
 
 template<>
-inline void debug(Name& component, Entity /*entity*/, bool& /*toMarkUpdated*/) { // NOLINT
+inline void debug([[maybe_unused]] Name& component, Entity /*entity*/, bool& /*toMarkUpdated*/) {
 #ifdef ECS_ENABLE_IMGUI
     ImGui::Text("%s", component.name.data());
 #endif
@@ -94,7 +94,7 @@ struct EntityDebugSystem final : BaseSystem {
     void registerDebugComponent() {
         ECS_PROFILER(ZoneScoped);
 
-        m_debug_callbacks.emplace_back([&world = m_world](Entity e) { // NOLINT
+        m_debug_callbacks.emplace_back([&world = m_world]([[maybe_unused]] Entity e) {
             ECS_PROFILER(ZoneScoped);
 
 #ifdef ECS_ENABLE_IMGUI
@@ -130,7 +130,7 @@ struct EntityDebugSystem final : BaseSystem {
         ECS_PROFILER(ZoneScoped);
 
         m_debug_callbacks.emplace_back(
-          [&world = m_world, callback = std::forward<Callback>(callback)](Entity e) { // NOLINT
+          [&world = m_world, callback = std::forward<Callback>(callback)]([[maybe_unused]] Entity e) {
               ECS_PROFILER(ZoneScoped);
 
 #ifdef ECS_ENABLE_IMGUI
@@ -161,7 +161,7 @@ struct EntityDebugSystem final : BaseSystem {
 
     // create a Component with custom function
     template<typename Component, string_literal Title, typename Callback>
-    void registerAddComponent(Callback&& f) { // NOLINT
+    void registerAddComponent(Callback&& f) {
         ECS_PROFILER(ZoneScoped);
 
         auto [_, was_added] = m_create_callbacks.try_emplace(

@@ -1,6 +1,7 @@
 #include "components.h"
 #include <simple-ecs/ECS.h>
 #include "battle_system.h"
+#include "dummy_system.h"
 #include "hp_system.h"
 #include <ct/random.h>
 
@@ -16,6 +17,7 @@ int main() {
     auto* reg = w.getRegistry();
     reg->addSystem<HPSystem>();
     reg->addSystem<BattleSystem>();
+    reg->addSystem<DummySystem>(w);
     reg->initNewSystems();
 
 

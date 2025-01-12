@@ -77,8 +77,6 @@ template<typename Component, typename... Types>
 inline constexpr bool ANY_OF = !CheckTypesAnyOf<Component, Types...>::value;
 
 
-using EntitiesWrapper = std::reference_wrapper<const std::vector<Entity>>;
-
 template<typename... T>
 struct AND {};
 

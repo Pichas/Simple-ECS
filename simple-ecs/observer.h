@@ -11,7 +11,7 @@
 template<typename Filter>
 struct Observer;
 
-namespace detail
+namespace detail::observer
 {
 
 template<typename...>
@@ -38,35 +38,23 @@ template<typename Archetype>
 struct ArchetypeConstructor<Archetype> {
     template<typename Filter>
     static void fill(OBSERVER(Filter) observer, Entity e, Archetype&& obj) {
-        detail::ArchetypeConstructor<typename std::remove_cvref_t<Archetype>::Components>::fill(
+        ArchetypeConstructor<typename std::remove_cvref_t<Archetype>::Components>::fill(
           observer, e, std::forward<Archetype>(obj));
     };
 };
 
-} // namespace detail
+} // namespace detail::observer
 
 
 template<typename Filter = RunEveryFrame>
 struct Observer final : NoCopyNoMove {
+    friend struct ObserverManager;
+
     using Require = typename Filter::Require::Type;
     using Exclude = typename Filter::Exclude::Type;
 
     Observer(World& world) : m_world(world) { refresh(); }
-
     ~Observer() noexcept = default;
-
-    void refresh() {
-        ECS_PROFILER(ZoneScoped);
-
-        m_world.notify(m_entities);
-
-        auto filtered = FilteredEntities<AND<Require>>::ents(m_world);
-        auto excluded = FilteredEntities<OR<Exclude>>::ents(m_world);
-        auto result   = std::move(filtered) - std::move(excluded);
-
-        std::lock_guard _(m_mutex);
-        m_entities.swap(*result);
-    }
 
     Registry* getRegistry() const noexcept { return m_world.getRegistry(); }
 
@@ -87,6 +75,7 @@ struct Observer final : NoCopyNoMove {
         return m_entities.empty();
     }
 
+    std::span<const Entity> entities() const noexcept { return *this; }
     operator std::span<const Entity>() const noexcept {
         std::lock_guard _(m_mutex);
         return {m_entities.cbegin(), m_entities.cend()};
@@ -98,10 +87,17 @@ struct Observer final : NoCopyNoMove {
         return EntityWrapper(m_entities[index], *this);
     }
 
-    bool isAlive(Entity e) const noexcept { return m_world.isAlive(e); }
-    void destroy(Entity e) const { m_world.destroy(e); }
-    void destroy(std::span<const Entity> ents) const { m_world.destroy(ents); }
     void destroy() const { m_world.destroy(*this); }
+
+    template<EcsTarget Target>
+    bool isAlive(Target target) const noexcept {
+        return m_world.isAlive(target);
+    }
+
+    template<EcsTarget Target>
+    void destroy(Target target) const {
+        m_world.destroy(target);
+    }
 
     ECS_FORCEINLINE decltype(auto) create() const {
         ECS_PROFILER(ZoneScoped);
@@ -113,71 +109,72 @@ struct Observer final : NoCopyNoMove {
         ECS_PROFILER(ZoneScoped);
 
         Entity e = m_world.create();
-        detail::ArchetypeConstructor<Archetype>::fill(*this, e, std::forward<Archetype>(obj));
+        detail::observer::ArchetypeConstructor<Archetype>::fill(*this, e, std::forward<Archetype>(obj));
         return EntityWrapper(e, *this);
     }
 
-    template<typename Component>
-    ECS_FORCEINLINE bool has(Entity e) const noexcept {
+    template<typename Component, EcsTarget Target>
+    ECS_FORCEINLINE bool has(Target target) const noexcept {
         ECS_PROFILER(ZoneScoped);
 
         static_assert(ANY_OF<Components<Component>, Exclude>, "Component is in the Exclude list");
-        return m_world.has<Component>(e);
+        return m_world.has<Component>(target);
     }
 
-    template<typename Component>
+    template<typename Component, EcsTarget Target>
     requires(!std::is_empty_v<Component>)
-    ECS_FORCEINLINE void emplace(Entity e, Component&& c) const {
+    ECS_FORCEINLINE void emplace(Target target, Component&& c) const {
         ECS_PROFILER(ZoneScoped);
 
-        m_world.emplace<Component>(e, std::forward<Component>(c));
+        m_world.emplace<Component>(target, std::forward<Component>(c));
     }
 
-    template<typename Component, typename... Args>
-    ECS_FORCEINLINE void emplace(Entity e, Args&&... args) const {
+    template<typename... Component, typename... Args, EcsTarget Target>
+    ECS_FORCEINLINE void emplace(Target targets, Args&&... args) const {
         ECS_PROFILER(ZoneScoped);
 
-        m_world.emplace<Component>(e, std::forward<Args>(args)...);
+        (m_world.emplace<Component>(targets, std::forward<Args>(args)...), ...);
     }
 
-    template<typename Component>
+    template<typename Component, EcsTarget Target>
     requires(!std::is_empty_v<Component>)
-    ECS_FORCEINLINE void emplaceTagged(Entity e, Component&& c) const {
+    ECS_FORCEINLINE void emplaceTagged(Target target, Component&& c) const {
         ECS_PROFILER(ZoneScoped);
 
-        m_world.emplaceTagged<Component>(e, std::forward<Component>(c));
+        m_world.emplaceTagged<Component>(target, std::forward<Component>(c));
     }
 
-    template<typename Component, typename... Args>
-    ECS_FORCEINLINE void emplaceTagged(Entity e, Args&&... args) const {
+    template<typename... Component, typename... Args, EcsTarget Target>
+    ECS_FORCEINLINE void emplaceTagged(Target target, Args&&... args) const {
         ECS_PROFILER(ZoneScoped);
 
-        m_world.emplaceTagged<Component>(e, std::forward<Args>(args)...);
+        (m_world.emplaceTagged<Component>(target, std::forward<Args>(args)...), ...);
     }
 
-    template<typename... Component>
-    ECS_FORCEINLINE void markUpdated(Entity e) const {
+    template<typename... Component, EcsTarget Target>
+    ECS_FORCEINLINE void markUpdated(Target target) const {
         ECS_PROFILER(ZoneScoped);
 
         static_assert(ALL_OF<Components<Component...>, Require>, "Component is not in the Require list");
         static_assert(ANY_OF<Components<Component...>, Exclude>, "Component is in the Exclude list");
-        (m_world.markUpdated<Component>(e), ...);
+        (m_world.markUpdated<Component>(target), ...);
     }
 
     template<typename... Component>
-    ECS_FORCEINLINE void clearUpdateTag(Entity e) const {
+    ECS_FORCEINLINE void markUpdated() const {
         ECS_PROFILER(ZoneScoped);
 
+        static_assert(ALL_OF<Components<Component...>, Require>, "Component is not in the Require list");
         static_assert(ANY_OF<Components<Component...>, Exclude>, "Component is in the Exclude list");
-        (m_world.clearUpdateTag<Component>(e), ...);
+        (m_world.markUpdated<Component>(entities()), ...);
     }
 
-    template<typename... Component>
-    ECS_FORCEINLINE void clearUpdateTag(std::span<const Entity> ents) const {
+    template<typename... Component, EcsTarget Target>
+    ECS_FORCEINLINE void clearUpdateTag(Target target) const {
         ECS_PROFILER(ZoneScoped);
 
         static_assert(ANY_OF<Components<Component...>, Exclude>, "Component is in the Exclude list");
-        (m_world.clearUpdateTag<Component>(ents), ...);
+        (m_world.clearUpdateTag<Component>(target), ...);
     }
 
     template<typename... Component>
@@ -185,31 +182,24 @@ struct Observer final : NoCopyNoMove {
         ECS_PROFILER(ZoneScoped);
 
         static_assert(ANY_OF<Components<Component...>, Exclude>, "Component is in the Exclude list");
-        (m_world.clearUpdateTag<Component>(*this), ...);
+        (m_world.clearUpdateTag<Component>(entities()), ...);
     }
 
-    template<typename... Component>
-    ECS_FORCEINLINE void erase(Entity e) const {
+    template<typename... Component, EcsTarget Target>
+    ECS_FORCEINLINE void erase(Target target) const {
         ECS_PROFILER(ZoneScoped);
 
         static_assert(ANY_OF<Components<Component...>, Exclude>, "Component is in the Exclude list");
-        (m_world.erase<Component>(e), ...);
+        (m_world.erase<Component>(target), ...);
     }
 
-    template<typename... Component>
-    ECS_FORCEINLINE void erase(std::span<const Entity> ents) const {
-        ECS_PROFILER(ZoneScoped);
-
-        static_assert(ANY_OF<Components<Component...>, Exclude>, "Component is in the Exclude list");
-        (m_world.erase<Component>(ents), ...);
-    }
 
     template<typename... Component>
     ECS_FORCEINLINE void erase() const {
         ECS_PROFILER(ZoneScoped);
 
         static_assert(ANY_OF<Components<Component...>, Exclude>, "Component is in the Exclude list");
-        (m_world.erase<Component>(*this), ...);
+        (m_world.erase<Component>(entities()), ...);
     }
 
     template<typename Component>
@@ -229,6 +219,20 @@ struct Observer final : NoCopyNoMove {
 
         static_assert(ANY_OF<Components<Component>, Exclude>, "Component is in the Exclude list");
         return m_world.tryGet<Component>(e);
+    }
+
+private:
+    void refresh() {
+        ECS_PROFILER(ZoneScoped);
+
+        m_world.notify(m_entities);
+
+        auto filtered = FilteredEntities<AND<Require>>::ents(m_world);
+        auto excluded = FilteredEntities<OR<Exclude>>::ents(m_world);
+        auto result   = std::move(filtered) - std::move(excluded);
+
+        std::lock_guard _(m_mutex);
+        m_entities.swap(*result);
     }
 
 private:
