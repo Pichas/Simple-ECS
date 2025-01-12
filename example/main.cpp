@@ -29,11 +29,9 @@ int main() {
         observer.create(std::move(instance));
     }
 
-    for (int i = 0; i < 1; i++) {
-        BossType instance;
-        instance.name = "Boss " + std::to_string(i);
-        observer.create(std::move(instance));
-    }
+    BossType instance;
+    instance.name = "Boss";
+    observer.create(std::move(instance));
 
 
     while (true) {

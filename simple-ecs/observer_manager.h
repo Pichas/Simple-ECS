@@ -98,7 +98,7 @@ public:
 
 
 private:
-    ObserverManager(World& world) : m_threads_control(thread_count) {
+    ObserverManager(World& world) : m_threads_control(thread_count), m_sync(false) {
         m_threads.reserve(thread_count);
 
         for (size_t i = 0; i < thread_count; ++i) {

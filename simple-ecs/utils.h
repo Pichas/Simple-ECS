@@ -88,7 +88,7 @@ using EntitiesWrapper = std::reference_wrapper<const std::vector<Entity>>;
 template<typename T>
 constexpr std::string serializeId() {
     auto id = ct::ID<T>;
-    return {std::launder(reinterpret_cast<const char* const>(&id)), sizeof(id)};
+    return {std::launder(reinterpret_cast<const char* const>(&id)), sizeof(id)}; //-V206
 }
 
 

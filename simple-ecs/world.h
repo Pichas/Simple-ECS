@@ -56,7 +56,8 @@ struct World final : NoCopyNoMove {
         std::ranges::sort(*buffer);
         auto left  = std::ranges::lower_bound(m_entities, buffer->front());
         auto right = std::ranges::lower_bound(m_entities, buffer->back());
-        return std::distance(left, std::next(right)) == static_cast<long>(buffer->size());
+        return std::distance(left, std::next(right)) ==
+               static_cast<std::iter_difference_t<decltype(left)>>(buffer->size());
     }
 
     template<typename Component>
@@ -339,10 +340,13 @@ struct World final : NoCopyNoMove {
         static uint16_t storage_id = 0;
         static uint8_t  frame      = 0;
 
-        if (++frame &= 0x7F; !frame) {
+        ++frame;
+        frame &= 0x7F;
+
+        if (!frame) {
             assert(m_storages.size());
             m_storages[storage_id++]->optimise();
-            storage_id %= m_storages.size();
+            storage_id = storage_id % static_cast<uint16_t>(m_storages.size());
         }
     }
 
