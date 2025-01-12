@@ -67,6 +67,8 @@ public:
 
     template<typename Filter>
     void registerObserver(std::uint32_t fname) {
+        std::unique_lock _(m_mutex);
+
         auto observer_id = detail::observer::sequenceID<Filter>();
 
         m_funcs_to_observers[fname].emplace_back(observer_id);
@@ -83,6 +85,8 @@ public:
     };
 
     void unregisterObserver(std::uint32_t fname) {
+        std::unique_lock _(m_mutex);
+
         for (auto observer_id : m_funcs_to_observers[fname]) {
             assert(m_observers_in_use[observer_id]);
             --m_observers_in_use[observer_id];
@@ -135,7 +139,6 @@ private:
     std::unordered_map<size_t, std::vector<size_t>> m_funcs_to_observers;
     std::unordered_map<size_t, size_t>              m_observers_in_use;
     std::vector<std::atomic_bool>                   m_threads_control;
-
 
     ECS_PROFILER(TracySharedLockable(std::shared_mutex, m_mutex));
     ECS_NO_PROFILER(std::shared_mutex m_mutex);

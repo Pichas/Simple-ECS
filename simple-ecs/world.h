@@ -318,7 +318,7 @@ struct World final : NoCopyNoMove {
             m_entities.swap(result);
             result.clear();
         } else {
-            auto pos = std::ranges::lower_bound(m_entities, m_entities_to_destroy.at(0));
+            auto pos = std::ranges::lower_bound(m_entities, m_entities_to_destroy.front());
             m_entities.erase(pos);
         }
 

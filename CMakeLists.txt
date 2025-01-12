@@ -4,7 +4,7 @@ project(SimpleECS VERSION 1.3.1 LANGUAGES CXX)
 
 option(ECS_FINAL "Final build without any debug info" OFF)
 option(ECS_ENABLE_IMGUI "Enable ImGui related code" OFF)
-option(ECS_ENABLE_PROFILER "Enable tracy profiler" ${PROJECT_IS_TOP_LEVEL})
+option(ECS_ENABLE_PROFILER "Enable tracy profiler" OFF)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

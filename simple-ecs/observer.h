@@ -45,7 +45,6 @@ struct ArchetypeConstructor<Archetype> {
 
 } // namespace detail
 
-inline TracyLockable(std::mutex, mutex);
 
 template<typename Filter = RunEveryFrame>
 struct Observer final : NoCopyNoMove {
@@ -64,19 +63,37 @@ struct Observer final : NoCopyNoMove {
         auto filtered = FilteredEntities<AND<Require>>::ents(m_world);
         auto excluded = FilteredEntities<OR<Exclude>>::ents(m_world);
         auto result   = std::move(filtered) - std::move(excluded);
+
+        std::lock_guard _(m_mutex);
         m_entities.swap(*result);
     }
 
     Registry* getRegistry() const noexcept { return m_world.getRegistry(); }
 
-    decltype(auto) begin() const noexcept { return EntityIterator(m_entities.begin(), *this); }
-    decltype(auto) end() const noexcept { return EntityIterator(m_entities.end(), *this); }
-    decltype(auto) size() const noexcept { return m_entities.size(); }
-    decltype(auto) empty() const noexcept { return m_entities.empty(); }
+    decltype(auto) begin() const noexcept {
+        std::lock_guard _(m_mutex);
+        return EntityIterator(m_entities.cbegin(), *this);
+    }
+    decltype(auto) end() const noexcept {
+        std::lock_guard _(m_mutex);
+        return EntityIterator(m_entities.cend(), *this);
+    }
+    size_t size() const noexcept {
+        std::lock_guard _(m_mutex);
+        return m_entities.size();
+    }
+    bool empty() const noexcept {
+        std::lock_guard _(m_mutex);
+        return m_entities.empty();
+    }
 
-    operator std::span<const Entity>() const noexcept { return {m_entities.cbegin(), m_entities.cend()}; }
+    operator std::span<const Entity>() const noexcept {
+        std::lock_guard _(m_mutex);
+        return {m_entities.cbegin(), m_entities.cend()};
+    }
 
     ECS_FORCEINLINE decltype(auto) operator[](std::size_t index) const {
+        std::lock_guard _(m_mutex);
         assert(index >= 0 && index < m_entities.size() && "Out of bound");
         return EntityWrapper(m_entities[index], *this);
     }
@@ -217,4 +234,7 @@ struct Observer final : NoCopyNoMove {
 private:
     World&              m_world;
     std::vector<Entity> m_entities;
+
+    ECS_PROFILER(mutable TracyLockable(std::mutex, m_mutex));
+    ECS_NO_PROFILER(mutable std::mutex m_mutex);
 };

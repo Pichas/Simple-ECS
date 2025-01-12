@@ -20,6 +20,9 @@ target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 if(LINUX)
-    target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address -fsanitize=undefined)
-    target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address -fsanitize=undefined)
+    # target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address -fsanitize=undefined)
+    # target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address -fsanitize=undefined)
+
+    target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=thread)
+    target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=thread)
 endif()

@@ -1,22 +1,24 @@
 #pragma once
 
 #include "simple-ecs/entity.h"
+#include "tools/profiler.h"
 #include "tools/sparse_set.h"
+
 
 #include <algorithm>
 #include <span>
 
-struct StorageBase : SparseSet {
-    StorageBase()                                  = default;
-    StorageBase(const StorageBase&)                = delete;
-    StorageBase(StorageBase&&) noexcept            = default;
-    StorageBase& operator=(const StorageBase&)     = delete;
-    StorageBase& operator=(StorageBase&&) noexcept = default;
-    ~StorageBase() override                        = default;
+struct StorageBase : SparseSet, NoCopyNoMove {
+    StorageBase()           = default;
+    ~StorageBase() override = default;
 
-    const std::vector<Entity>& entities() const noexcept { return m_entities; }
-    decltype(auto)             size() const noexcept { return m_entities.size(); }
-    decltype(auto)             empty() const noexcept { return m_entities.empty(); }
+    ECS_FORCEINLINE const std::vector<Entity>& entities() const noexcept {
+        std::lock_guard _(m_mutex);
+        return m_entities;
+    }
+
+    decltype(auto) size() const noexcept { return entities().size(); }
+    decltype(auto) empty() const noexcept { return entities().empty(); }
 
     virtual void remove(Entity e)                     = 0;
     virtual void remove(std::span<const Entity> ents) = 0;
@@ -27,6 +29,9 @@ struct StorageBase : SparseSet {
     virtual bool optimise() = 0;
 
 protected:
+    ECS_PROFILER(mutable TracyLockable(std::mutex, m_mutex));
+    ECS_NO_PROFILER(mutable std::mutex m_mutex);
+
     std::vector<Entity> m_entities;
 
     ECS_DEBUG_ONLY(std::string m_string_name);
@@ -68,6 +73,7 @@ struct Storage final : StorageBase {
     void addEmplaceCallback(Callback&& func) { m_on_construct_callbacks.emplace_back(std::forward<Callback>(func)); }
     void addDestroyCallback(Callback&& func) { m_on_destroy_callbacks.emplace_back(std::forward<Callback>(func)); }
 
+
     template<typename... Args>
     requires std::is_constructible_v<Component, Args...>
     ECS_FORCEINLINE void emplace(Entity e, Args&&... args) {
@@ -76,7 +82,11 @@ struct Storage final : StorageBase {
 
             auto lower = std::ranges::lower_bound(m_entities, e);
             m_is_optimised &= lower == m_entities.end();
-            m_entities.insert(lower, e);
+
+            {
+                std::lock_guard _(m_mutex);
+                m_entities.insert(lower, e);
+            }
 
             if constexpr (!std::is_empty_v<Component>) {
                 m_components.emplace_back(std::forward<Args>(args)...);
@@ -100,8 +110,9 @@ struct Storage final : StorageBase {
         ECS_PROFILER(ZoneScoped);
 
         eraseOne(e);
-
         auto lower = std::ranges::lower_bound(m_entities, e);
+
+        std::lock_guard _(m_mutex);
         m_entities.erase(lower);
     }
 
@@ -117,10 +128,12 @@ struct Storage final : StorageBase {
         }
 
         static std::vector<Entity> result;
+        result.clear();
         result.reserve(m_entities.size());
         std::ranges::set_difference(m_entities, ents, std::back_inserter(result));
+
+        std::lock_guard _(m_mutex);
         m_entities.swap(result);
-        result.clear();
     }
 
 
