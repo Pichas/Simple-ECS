@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(SimpleECS VERSION 1.4.0 LANGUAGES CXX)
+project(SimpleECS VERSION 1.4.1 LANGUAGES CXX)
 
 option(ECS_FINAL "Final build without any debug info" OFF)
 option(ECS_ENABLE_IMGUI "Enable ImGui related code" OFF)
@@ -41,6 +41,7 @@ set(SOURCE_FILES
     ${CPP_FILES}
 )
 
+option(USE_CPM "Use CPM to manage deps" ON)
 add_subdirectory(external)
 
 add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES})
@@ -56,9 +57,7 @@ endif()
 
 
 if(ECS_FINAL)
-    # set_target_properties(${PROJECT_NAME} PROPERTIES UNITY_BUILD ON)
     target_compile_definitions(${PROJECT_NAME} PUBLIC ECS_FINAL)
-    set(ECS_ENABLE_IMGUI OFF)
 endif()
 
 set_target_properties(${PROJECT_NAME}
@@ -72,8 +71,8 @@ if(ECS_ENABLE_IMGUI)
 
     target_link_libraries(${PROJECT_NAME}
         PUBLIC
-            ImGui # EntityDebugSystem uses it
-            ImPlot # EntityDebugSystem uses it
+            imgui # EntityDebugSystem uses it
+            implot # EntityDebugSystem uses it
     )
 endif()
 

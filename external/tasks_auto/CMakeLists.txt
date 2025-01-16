@@ -1,14 +1,7 @@
-if(TARGET Tasks::Tasks)
-    return()
-endif()
-
-message(STATUS "external: downloading target 'Tasks::Tasks'")
-
-include(FetchContent)
-FetchContent_Declare(
-    tasks_git
-    GIT_REPOSITORY https://gitlab.com/p34ch-main/tasks
-    GIT_TAG        v1.1.0
+AddExternalPackage(
+    Tasks
+        v1.1.0
+        https://gitlab.com/p34ch-main/tasks.git
+        NO
+        NO
 )
-
-FetchContent_MakeAvailable(tasks_git)
