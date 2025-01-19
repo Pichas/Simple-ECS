@@ -291,7 +291,7 @@ private:
             ECS_PROFILER(ZoneScoped);
 
             ECS_NOT_FINAL_ONLY(spdlog::stopwatch sw);
-            m_function();
+            std::invoke(m_function);
             ECS_NOT_FINAL_ONLY(m_time = sw.elapsed());
         }
 

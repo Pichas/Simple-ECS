@@ -16,8 +16,8 @@ struct ComponentsTuple;
 template<typename... Component>
 struct ComponentsTuple<Components<Component...>> {
     template<typename EntityWrapper>
-    static auto create(EntityWrapper&& e) {
-        return std::make_tuple<Component&...>(std::forward<EntityWrapper>(e).template get<Component>()...);
+    static std::tuple<Component&...> create(EntityWrapper&& e) {
+        return {std::forward<EntityWrapper>(e).template get<Component>()...};
     }
 };
 
