@@ -27,7 +27,7 @@ struct StorageBase : SparseSet, NoCopyNoMove {
     ECS_DEBUG_ONLY(IDType id() const noexcept { return m_id; })
     ECS_DEBUG_ONLY(std::string name() const noexcept { return m_string_name; })
 
-    virtual bool optimise() = 0;
+    virtual bool optimize() = 0;
 
 protected:
     ECS_PROFILER(mutable TracySharedLockable(std::shared_mutex, m_mutex));
@@ -80,7 +80,7 @@ struct Storage final : StorageBase {
             ECS_PROFILER(ZoneScoped);
 
             auto lower = std::ranges::lower_bound(m_entities, e);
-            m_is_optimised &= lower == m_entities.end();
+            m_is_optimized &= lower == m_entities.end();
 
             {
                 std::unique_lock _(m_mutex);
@@ -165,17 +165,17 @@ struct Storage final : StorageBase {
         return nullptr;
     }
 
-    bool optimise() override {
+    bool optimize() override {
         if constexpr (std::is_empty_v<Component>) {
             return true;
         } else {
-            if (m_dense.empty() || m_is_optimised) {
+            if (m_dense.empty() || m_is_optimized) {
                 return true;
             }
 
             ECS_PROFILER(ZoneScoped);
 
-            m_is_optimised = true;
+            m_is_optimized = true;
             // make one sort pass to avoid blocks
             for (auto it = std::next(m_dense.begin()); it < m_dense.end(); ++it) {
                 if (*std::prev(it) > *it) {
@@ -183,11 +183,11 @@ struct Storage final : StorageBase {
                     std::swap(m_components[m_sparse[*prev]], m_components[m_sparse[*it]]);
                     std::swap(m_sparse[*prev], m_sparse[*it]);
                     std::iter_swap(prev, it);
-                    m_is_optimised = false;
+                    m_is_optimized = false;
                 }
             }
 
-            return m_is_optimised;
+            return m_is_optimized;
         }
     }
 
@@ -219,5 +219,5 @@ private:
     std::vector<Component> m_components;
     std::vector<Callback>  m_on_destroy_callbacks;
     std::vector<Callback>  m_on_construct_callbacks;
-    bool                   m_is_optimised = true;
+    bool                   m_is_optimized = true;
 };

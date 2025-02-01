@@ -43,6 +43,7 @@ struct World final : NoCopyNoMove {
     decltype(auto) size() const noexcept { return m_entities.size(); }
     decltype(auto) empty() const noexcept { return m_entities.empty(); }
 
+    std::size_t                             totalComponents() const noexcept { return m_storages.size(); }
     const std::vector<Entity>&              entities() const noexcept { return m_entities; }
     const std::map<std::string, Component>& registeredComponentNames() const noexcept { return m_component_name; }
     bool isAlive(Entity e) const noexcept { return std::ranges::binary_search(m_entities, e); }
@@ -334,21 +335,13 @@ struct World final : NoCopyNoMove {
         }
     }
 
-    void optimise() {
+    void optimize(std::size_t storage_id) {
         ECS_PROFILER(ZoneScoped);
 
-        static uint16_t storage_id = 0;
-        static uint8_t  frame      = 0;
-
-        ++frame;
-        frame &= 0x7F;
-
-        if (!frame) {
-            assert(m_storages.size());
-            m_storages[storage_id++]->optimise();
-            storage_id = storage_id % static_cast<uint16_t>(m_storages.size());
-        }
+        assert(m_storages.size());
+        m_storages[storage_id % m_storages.size()]->optimize();
     }
+
 
 private:
     std::unique_ptr<Registry>                 m_reg;

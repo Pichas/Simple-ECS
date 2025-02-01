@@ -244,8 +244,20 @@ struct Registry final : NoCopyNoMove {
         }
 
         cleanup();
-        m_world.flush();    // destroy all removed entities at the end of the frame
-        m_world.optimise(); // make storage optimisations
+        m_world.flush(); // destroy all removed entities at the end of the frame
+
+        { // optimize one storage
+            static uint16_t storage_id = 0;
+            static uint8_t  frame      = 0;
+
+            ++frame;
+            frame &= 60; // run every 60 frames
+
+            if (!frame) {
+                m_world.optimize(storage_id);
+                storage_id = storage_id % static_cast<uint16_t>(m_world.totalComponents());
+            }
+        }
 
         m_frame_ready.store(true, std::memory_order_relaxed);
     }
