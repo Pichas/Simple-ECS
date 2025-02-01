@@ -23,6 +23,6 @@ if(LINUX)
     # target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address -fsanitize=undefined)
     # target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address -fsanitize=undefined)
 
-    target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=thread)
-    target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=thread)
+    # target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=thread)
+    # target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=thread)
 endif()

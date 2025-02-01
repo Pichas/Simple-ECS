@@ -41,7 +41,7 @@ set(SOURCE_FILES
     ${CPP_FILES}
 )
 
-option(USE_CPM "Use CPM to manage deps" ON)
+option(USE_CPM "Use CPM to manage deps" OFF)
 add_subdirectory(external)
 
 add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES})
