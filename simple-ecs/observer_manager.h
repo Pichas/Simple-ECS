@@ -46,21 +46,17 @@ public:
     ECS_FORCEINLINE void sync() {
         ECS_PROFILER(ZoneScoped);
 
-        // wait for all threads to start
-        for (auto& is_running : m_threads_control) {
-            while (!is_running.load(std::memory_order_acquire)) {
-                std::this_thread::yield();
-            }
-
-            is_running.store(false, std::memory_order_release);
+        // guarantee that all functions were finished
+        while (m_finished_function.load(std::memory_order_relaxed) != m_functions.size()) {
+            std::this_thread::yield();
         }
-
-        std::unique_lock _(m_mutex);
     }
 
     ECS_FORCEINLINE void triger() {
         ECS_PROFILER(ZoneScoped);
 
+        m_current_function.store(0, std::memory_order_relaxed);
+        m_finished_function.store(0, std::memory_order_relaxed);
         m_sync.store(!m_sync.load(std::memory_order_acquire), std::memory_order_release);
         m_sync.notify_all();
     }
@@ -98,21 +94,16 @@ public:
 
 
 private:
-    ObserverManager(World& world) : m_threads_control(thread_count), m_sync(false) {
+    ObserverManager(World& world) : m_sync(false) {
         m_threads.reserve(thread_count);
 
         for (size_t i = 0; i < thread_count; ++i) {
-            std::atomic_bool is_started = false;
-            m_threads.emplace_back([this, &world, index = i, &is_started](const std::stop_token& stoken) {
+            auto& thread = m_threads.emplace_back([this, &world](const std::stop_token& stoken) {
                 ECS_PROFILER(tracy::SetThreadName("ECS Filter Thread"));
 
-                is_started = true;
-                is_started.notify_one();
-
                 while (true) {
-                    m_sync.wait(m_sync.load(std::memory_order_relaxed), std::memory_order_relaxed);
+                    m_sync.wait(m_sync.load(std::memory_order_relaxed), std::memory_order_acquire);
                     std::shared_lock _(m_mutex);
-                    m_threads_control[index].store(true, std::memory_order_relaxed);
 
                     if (stoken.stop_requested()) {
                         return;
@@ -120,25 +111,30 @@ private:
 
                     ECS_PROFILER(ZoneScoped);
 
-                    for (size_t i = index; i < m_functions.size(); i += thread_count) {
+                    for (auto i = m_current_function.fetch_add(1, std::memory_order_relaxed); //
+                         static_cast<size_t>(i) < m_functions.size();
+                         i = m_current_function.fetch_add(1, std::memory_order_relaxed)) {
                         std::invoke(m_functions[i], world);
+                        m_finished_function.fetch_add(1, std::memory_order_relaxed);
                     }
                 }
             });
 
-            // when the game is small, it can start processing systems before init threads
-            // so we have to wait all threads to be started
-            is_started.wait(false);
+            // we have to wait all threads to be started before start processing
+            while (!thread.joinable()) {
+                std::this_thread::yield();
+            }
         };
     };
 
 private:
     std::vector<std::jthread>                       m_threads;
-    std::vector<std::atomic_bool>                   m_threads_control;
-    std::vector<std::function<void(World&)>>        m_functions;
-    std::atomic_bool                                m_sync;
     std::unordered_map<size_t, std::vector<size_t>> m_funcs_to_observers;
     std::unordered_map<size_t, size_t>              m_observers_in_use;
+    std::vector<std::function<void(World&)>>        m_functions;
+    std::atomic_uint16_t                            m_current_function;
+    std::atomic_uint16_t                            m_finished_function;
+    std::atomic_bool                                m_sync;
 
     ECS_PROFILER(TracySharedLockable(std::shared_mutex, m_mutex));
     ECS_NO_PROFILER(std::shared_mutex m_mutex);
