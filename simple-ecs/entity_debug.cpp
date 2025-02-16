@@ -25,8 +25,7 @@ void EntityDebugSystem::setup([[maybe_unused]] Registry& reg) {
           std::vector<std::uint8_t>        temp;
           const std::vector<std::uint8_t>& size = serializer::serialize(comp.name.size());
           std::ranges::copy(size, std::back_inserter(temp));
-          // BUG: throws iterator error when use comp.name directly
-          std::ranges::copy(std::string_view(comp.name), std::back_inserter(temp));
+          std::ranges::copy(comp.name, std::back_inserter(temp));
           return temp;
       })
       .setLoadFunc([](const std::uint8_t*& data) {
@@ -138,27 +137,54 @@ void EntityDebugSystem::showEntityListUI() {
 
         ImGui::Separator();
 
-        for (const auto& e : m_world.entities()) {
-            ImGui::PushID(static_cast<int>(e));
+        if (ImGui::Button("+Entity")) {
+            std::ignore = m_world.create();
+        }
 
-            if (ImGui::SmallButton("X")) {
-                m_world.destroy(e);
+        constexpr ImGuiTableFlags flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY;
+        if (ImGui::BeginTable("Entities", 3, flags)) {
+            ImGui::TableSetupColumn("Name");
+            ImGui::TableSetupColumn("Button", ImGuiTableColumnFlags_WidthFixed, 0.0f);
+            ImGui::TableSetupColumn("Destroy", ImGuiTableColumnFlags_WidthFixed, 0.0f);
+
+            const auto&      entities = m_world.entities();
+            ImGuiListClipper clipper;
+            clipper.Begin(entities.size());
+
+            while (clipper.Step()) {
+                for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++) {
+                    ImGui::TableNextRow();
+
+                    auto e = entities[row];
+                    ImGui::PushID(static_cast<int>(e));
+
+                    ImGui::TableNextColumn();
+                    auto ent_name = ""_t;
+                    if (auto* name = m_world.tryGet<Name>(e)) {
+                        *ent_name = std::format("{} ({})", name->name, e);
+                    } else {
+                        *ent_name = std::format("Entity: {}", e);
+                    }
+
+                    ImGui::Selectable(ent_name->c_str(),
+                                      false,
+                                      ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap);
+
+
+                    ImGui::TableNextColumn();
+                    if (ImGui::SmallButton("View")) {
+                        show_entity_info.emplace(e, std::bind_front(&EntityDebugSystem::showEntityInfoUI, this, e));
+                    }
+
+                    ImGui::TableNextColumn();
+                    if (ImGui::SmallButton("X")) {
+                        m_world.destroy(e);
+                    }
+
+                    ImGui::PopID();
+                }
             }
-
-            ImGui::SameLine();
-            if (ImGui::SmallButton("View")) {
-                show_entity_info.emplace(e, std::bind_front(&EntityDebugSystem::showEntityInfoUI, this, e));
-            }
-
-            ImGui::SameLine();
-            auto* name = m_world.tryGet<Name>(e);
-            if (name) {
-                ImGui::Text("%s (%u)", name->name.data(), e);
-            } else {
-                ImGui::Text("Entity: %u", e);
-            }
-
-            ImGui::PopID();
+            ImGui::EndTable();
         }
 
         // show info for selected entity
@@ -166,9 +192,6 @@ void EntityDebugSystem::showEntityListUI() {
             it = (it->second)() ? show_entity_info.erase(it) : ++it;
         }
 
-        if (ImGui::Button("+Entity")) {
-            (void)m_world.create();
-        }
 
         if (m_show_entities_history) {
             entityHistory();

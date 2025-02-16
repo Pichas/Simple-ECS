@@ -19,13 +19,13 @@ requires std::is_trivially_copyable_v<Type>
 template<typename Type>
 requires std::is_trivially_copyable_v<Type>
 [[nodiscard]] constexpr Type deserialize(const std::uint8_t*& data) {
-    std::size_t size = sizeof(Type);
+    constexpr std::size_t                        size = sizeof(Type);
+    alignas(Type) std::array<std::uint8_t, size> buffer;
 
-    Type temp;
-    std::memcpy(&temp, data, size);
+    std::memcpy(&buffer, data, size);
     data += size;
 
-    return temp;
+    return *reinterpret_cast<Type*>(std::launder(buffer.data()));
 }
 
 }; // namespace serializer
