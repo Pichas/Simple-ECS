@@ -19,6 +19,16 @@ int main() {
     ComponentRegistrant<Dead, Player, Boss>(w).createStorage();
     ComponentRegistrant<Damage, HP>(w).createStorage();
 
+    ComponentRegistrant<Player>(w)
+      .addEmplaceCallback([](Entity e) { spdlog::debug("Entity {} with Tag {} was created", e, ct::name_sv<Player>); })
+      .addDestroyCallback([](Entity e) { spdlog::debug("Entity {} with Tag {} was removed", e, ct::name_sv<Player>); });
+
+    ComponentRegistrant<HP>(w).addDestroyCallback([&w](Entity e, HP& c) {
+        const auto& name = w.get<Name>(e);
+        spdlog::debug("Entity '{}', Name '{}' with HP '{}' was removed", e, name.name, c.hp);
+        c.hp = 0; // do something with component before destroy
+    });
+
     auto* reg = w.getRegistry();
     reg->addSystem<HPSystem>();
     reg->addSystem<BattleSystem>();
