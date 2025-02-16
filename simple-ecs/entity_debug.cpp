@@ -33,7 +33,7 @@ void EntityDebugSystem::setup([[maybe_unused]] Registry& reg) {
           std::string temp(size, 0);
           std::memcpy(temp.data(), data, size);
           data += size;
-          return Name{temp};
+          return Name{std::move(temp)};
       });
 }
 
