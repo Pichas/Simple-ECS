@@ -22,18 +22,18 @@ void EntityDebugSystem::setup([[maybe_unused]] Registry& reg) {
       .addEmplaceCallback([](Entity e, Name& c) { spdlog::debug("Entity {} ({}) was created", c.name.c_str(), e); })
       .addDestroyCallback([](Entity e, Name& c) { spdlog::debug("Entity {} ({}) was removed", c.name.c_str(), e); })
       .setSaveFunc([](const Name& comp) {
-          std::vector<std::uint8_t>        temp;
-          const std::vector<std::uint8_t>& size = serializer::serialize(comp.name.size());
+          serializer::Output temp;
+          auto&&             size = serializer::serialize(comp.name.size());
           std::ranges::copy(size, std::back_inserter(temp));
           std::ranges::copy(comp.name, std::back_inserter(temp));
           return temp;
       })
-      .setLoadFunc([](const std::uint8_t*& data) {
-          auto        size = serializer::deserialize<std::string::size_type>(data);
+      .setLoadFunc([](serializer::Input& data) -> Name {
+          auto&&      size = serializer::deserialize<std::string::size_type>(data);
           std::string temp(size, 0);
           std::memcpy(temp.data(), data, size);
           data += size;
-          return Name{std::move(temp)};
+          return {std::move(temp)};
       });
 }
 

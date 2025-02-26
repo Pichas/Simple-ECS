@@ -9,18 +9,25 @@
 namespace serializer
 {
 
+using Data   = char;
+using Output = std::vector<Data>;
+using Input  = const Data*;
+
+
 template<typename Type>
 requires std::is_trivially_copyable_v<Type>
-[[nodiscard]] constexpr std::vector<std::uint8_t> serialize(const Type& obj) {
-    auto raw = std::span(reinterpret_cast<const std::uint8_t* const>(&obj), sizeof(Type));
-    return {raw.begin(), raw.end()};
+[[nodiscard]] Output serialize(const Type& obj) {
+    constexpr size_t size = sizeof(Type);
+    Output           data(size);
+    std::memcpy(data.data(), &obj, size);
+    return data;
 }
 
 template<typename Type>
 requires std::is_trivially_copyable_v<Type>
-[[nodiscard]] constexpr Type deserialize(const std::uint8_t*& data) {
-    constexpr std::size_t                        size = sizeof(Type);
-    alignas(Type) std::array<std::uint8_t, size> buffer;
+[[nodiscard]] Type deserialize(Input& data) {
+    constexpr std::size_t                size = sizeof(Type);
+    alignas(Type) std::array<char, size> buffer;
 
     std::memcpy(&buffer, data, size);
     data += size;
@@ -33,19 +40,19 @@ requires std::is_trivially_copyable_v<Type>
 struct Serializer final {
     Serializer(World& world);
 
-    std::vector<std::uint8_t> save();
-    void                      load(std::span<const std::uint8_t> data);
+    serializer::Output save();
+    void               load(std::span<const serializer::Data>);
 
     template<typename Component>
     requires std::is_trivially_copyable_v<Component>
     void registerType();
 
     template<typename Component, typename Callback>
-    requires std::is_invocable_r_v<std::vector<std::uint8_t>, Callback, const Component&>
+    requires std::is_invocable_r_v<serializer::Output, Callback, const Component&>
     void registerCustomSaver(Callback&& f);
 
     template<typename Component, typename Callback>
-    requires std::is_invocable_r_v<Component, Callback, const std::uint8_t*&>
+    requires std::is_invocable_r_v<Component, Callback, serializer::Input&>
     void registerCustomLoader(Callback&& f);
 
 private:
@@ -69,9 +76,9 @@ private:
     void addLoadCallback();
 
 private:
-    World&                                                                                 m_world;
-    std::unordered_map<Component, std::function<void(Entity, std::vector<std::uint8_t>&)>> m_save_functions;
-    std::unordered_map<Component, std::function<void(Entity, const std::uint8_t*& data)>>  m_load_functions;
+    World&                                                                          m_world;
+    std::unordered_map<Component, std::function<void(Entity, serializer::Output&)>> m_save_functions;
+    std::unordered_map<Component, std::function<void(Entity, serializer::Input&)>>  m_load_functions;
 };
 
 template<typename Component>
@@ -82,17 +89,16 @@ void Serializer::registerType() {
 }
 
 template<typename Component, typename Callback>
-requires std::is_invocable_r_v<std::vector<std::uint8_t>, Callback, const Component&>
+requires std::is_invocable_r_v<serializer::Output, Callback, const Component&>
 void Serializer::registerCustomSaver(Callback&& f) { // NOLINT
     assert(!m_save_functions.contains(ct::ID<Component>) && "Component already has save function");
     auto [_, was_added] = m_save_functions.try_emplace(
-      ct::ID<Component>,
-      [&world = m_world, func = std::forward<Callback>(f)](Entity e, std::vector<std::uint8_t>& data) {
+      ct::ID<Component>, [&world = m_world, func = std::forward<Callback>(f)](Entity e, serializer::Output& data) {
           if (world.has<Component>(e)) {
-              const Component&                 comp  = world.get<Component>(e);
-              const std::vector<std::uint8_t>& bytes = func(comp);
+              const Component& comp  = world.get<Component>(e);
+              auto&&           bytes = func(comp);
 
-              const std::vector<std::uint8_t>& id = serializer::serialize(ct::ID<Component>);
+              auto&& id = serializer::serialize(ct::ID<Component>);
               std::ranges::copy(id, std::back_inserter(data));
               std::ranges::copy(bytes, std::back_inserter(data));
           }
@@ -101,11 +107,11 @@ void Serializer::registerCustomSaver(Callback&& f) { // NOLINT
 }
 
 template<typename Component, typename Callback>
-requires std::is_invocable_r_v<Component, Callback, const std::uint8_t*&>
+requires std::is_invocable_r_v<Component, Callback, serializer::Input&>
 void Serializer::registerCustomLoader(Callback&& f) { // NOLINT
     assert(!m_load_functions.contains(ct::ID<Component>) && "Component already has load function");
     auto [_, was_added] = m_load_functions.try_emplace(
-      ct::ID<Component>, [&world = m_world, func = std::forward<Callback>(f)](Entity e, const std::uint8_t*& data) {
+      ct::ID<Component>, [&world = m_world, func = std::forward<Callback>(f)](Entity e, serializer::Input& data) {
           Component&& comp = func(data);
           world.emplace(e, std::move(comp));
           world.markUpdated<Component>(e);
@@ -117,9 +123,9 @@ template<typename Component>
 requires(std::is_empty_v<Component>)
 void Serializer::addSaveCallback() {
     auto [_, was_added] =
-      m_save_functions.try_emplace(ct::ID<Component>, [&world = m_world](Entity e, std::vector<std::uint8_t>& data) {
+      m_save_functions.try_emplace(ct::ID<Component>, [&world = m_world](Entity e, serializer::Output& data) {
           if (world.has<Component>(e)) {
-              const std::vector<std::uint8_t>& id = serializer::serialize(ct::ID<Component>);
+              const auto& id = serializer::serialize(ct::ID<Component>);
               std::ranges::copy(id, std::back_inserter(data));
           }
       });
@@ -130,7 +136,7 @@ template<typename Component>
 requires(std::is_empty_v<Component>)
 void Serializer::addLoadCallback() {
     auto [_, was_added] =
-      m_load_functions.try_emplace(ct::ID<Component>, [&world = m_world](Entity e, const std::uint8_t*& /*fs*/) {
+      m_load_functions.try_emplace(ct::ID<Component>, [&world = m_world](Entity e, serializer::Input& /*fs*/) {
           world.emplace<Component>(e);
           world.markUpdated<Component>(e);
       });
