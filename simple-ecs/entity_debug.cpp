@@ -52,21 +52,15 @@ void EntityDebugSystem::trackEntitiesCount(OBSERVER(RunEveryFrame) /*unused*/) {
 #endif
 }
 
-void EntityDebugSystem::showRegisteredComponents() {
+void EntityDebugSystem::showRegisteredComponents([[maybe_unused]] bool& show) {
     ECS_PROFILER(ZoneScoped);
 
 #ifdef ECS_ENABLE_IMGUI
-    static bool show = false;
-
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("Debug")) {
-            ImGui::MenuItem("All components", nullptr, &show);
-            ImGui::EndMenu();
-        }
-        ImGui::EndMainMenuBar();
+    if (!show) {
+        return;
     }
 
-    if (show && ImGui::Begin("Component list", &show, ImGuiWindowFlags_NoCollapse)) {
+    if (ImGui::Begin("Component list", &show, ImGuiWindowFlags_NoCollapse)) {
         constexpr ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
 
         if (ImGui::BeginTable("components", 2, flags)) {
@@ -84,51 +78,41 @@ void EntityDebugSystem::showRegisteredComponents() {
             }
             ImGui::EndTable();
         }
-        ImGui::End();
     }
+
+    ImGui::End();
 #endif
 }
 
-void EntityDebugSystem::showRegisteredFunctions() {
+void EntityDebugSystem::showRegisteredFunctions([[maybe_unused]] bool& show) {
     ECS_PROFILER(ZoneScoped);
 
 #ifdef ECS_ENABLE_IMGUI
-    static bool show = false;
-
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("Debug")) {
-            ImGui::MenuItem("All functions", nullptr, &show);
-            ImGui::EndMenu();
-        }
-        ImGui::EndMainMenuBar();
+    if (!show) {
+        return;
     }
 
-    if (show && ImGui::Begin("Function list", &show, ImGuiWindowFlags_NoCollapse)) {
+    if (ImGui::Begin("Function list", &show, ImGuiWindowFlags_NoCollapse)) {
         for (const auto& [time, name] : m_world.getRegistry()->getRegisteredFunctionsInfo()) {
-            ImGui::Text("%.7f s - %s", time, name.data());
+            ImGui::Text("%.7f s - %s", time, name.data()); // NOLINT
         }
-        ImGui::End();
     }
+    ImGui::End();
 #endif
 }
 
 
-void EntityDebugSystem::showEntityListUI() {
+void EntityDebugSystem::showEntityListUI([[maybe_unused]] bool& show) {
     ECS_PROFILER(ZoneScoped);
 
 #ifdef ECS_ENABLE_IMGUI
-    static bool                                                  show = false;
     static std::unordered_map<Entity, std::function<bool(void)>> show_entity_info;
 
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("Debug")) {
-            ImGui::MenuItem("Entities", nullptr, &show);
-            ImGui::EndMenu();
-        }
-        ImGui::EndMainMenuBar();
+    if (!show) {
+        return;
     }
 
-    if (show && ImGui::Begin("Entity list", &show, ImGuiWindowFlags_NoCollapse)) {
+    if (ImGui::Begin("Entity list", &show, ImGuiWindowFlags_NoCollapse)) {
         ImGui::Text("Total %zu", m_world.size());
         ImGui::SameLine();
         if (ImGui::SmallButton("History")) {
@@ -189,19 +173,19 @@ void EntityDebugSystem::showEntityListUI() {
 
         // show info for selected entity
         for (auto it = show_entity_info.begin(); it != show_entity_info.end();) {
-            it = (it->second)() ? show_entity_info.erase(it) : ++it;
+            it = std::invoke(it->second) ? show_entity_info.erase(it) : ++it;
         }
 
 
         if (m_show_entities_history) {
             entityHistory();
         }
-
-        ImGui::End();
     } else {
         show_entity_info.clear();
         m_show_entities_history = false;
     }
+    ImGui::End();
+
 #endif
 }
 
@@ -214,9 +198,9 @@ bool EntityDebugSystem::showEntityInfoUI([[maybe_unused]] Entity e) {
     auto*       name   = m_world.tryGet<Name>(e);
     std::string header = (name ? name->name : "Entity") + " (" + std::to_string(e) + ")";
 
-    if (show && ImGui::Begin(header.c_str(), &show, ImGuiWindowFlags_NoCollapse)) {
-        for (const auto& debug : m_debug_callbacks) {
-            debug(e);
+    if (ImGui::Begin(header.c_str(), &show, ImGuiWindowFlags_NoCollapse)) {
+        for (const auto& func : m_debug_callbacks) {
+            func(e);
         }
 
         if (ImGui::Button("+Comp")) {
@@ -232,8 +216,8 @@ bool EntityDebugSystem::showEntityInfoUI([[maybe_unused]] Entity e) {
             }
             ImGui::EndPopup();
         }
-        ImGui::End();
     }
+    ImGui::End();
 
     return !show;
 #else
@@ -245,8 +229,11 @@ void EntityDebugSystem::entityHistory() {
     ECS_PROFILER(ZoneScoped);
 
 #ifdef ECS_ENABLE_IMGUI
-    if (m_show_entities_history &&
-        ImGui::Begin("Entity count", &m_show_entities_history, ImGuiWindowFlags_NoCollapse)) {
+    if (!m_show_entities_history) {
+        return;
+    }
+
+    if (ImGui::Begin("Entity count", &m_show_entities_history, ImGuiWindowFlags_NoCollapse)) {
         static float history = 60.0f;
         double       size    = m_world.size();
 
@@ -270,8 +257,8 @@ void EntityDebugSystem::entityHistory() {
 
             ImPlot::EndPlot();
         }
-
-        ImGui::End();
     }
+
+    ImGui::End();
 #endif
 }

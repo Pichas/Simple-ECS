@@ -71,9 +71,9 @@ struct EntityDebugSystem final : BaseSystem {
     ~EntityDebugSystem() override = default;
     void setup(Registry& reg);
 
-    void showRegisteredComponents();
-    void showRegisteredFunctions();
-    void showEntityListUI();
+    void showRegisteredComponents(bool& show);
+    void showRegisteredFunctions(bool& show);
+    void showEntityListUI(bool& show);
 
     // debug information for tags
     template<typename Component>
