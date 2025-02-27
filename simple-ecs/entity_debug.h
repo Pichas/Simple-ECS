@@ -38,8 +38,8 @@ requires(std::is_empty_v<Component>)
 void debug([[maybe_unused]] World& w, [[maybe_unused]] Entity e) {
 #ifdef ECS_ENABLE_IMGUI
     if (w.has<Component>(e)) {
-        ImGui::PushID(ct::name<Component>.data());
-        ImGui::Text("%s", ct::name<Component>.c_str());
+        ImGui::PushID(ct::NAME<Component>.data());
+        ImGui::Text("%s", std::string(ct::NAME<Component>).c_str());
         ImGui::SameLine();
         if (ImGui::SmallButton("Remove")) {
             w.erase<Component>(e);
@@ -101,7 +101,7 @@ struct EntityDebugSystem final : BaseSystem {
             Component* c     = world.tryGet<Component>(e);
             bool       state = true;
 
-            if (c && ImGui::CollapsingHeader(ct::name<Component>.c_str(), &state)) {
+            if (c && ImGui::CollapsingHeader(std::string(ct::NAME<Component>).c_str(), &state)) {
                 ImGui::PushID(c);
                 ImGui::Indent();
 
@@ -175,7 +175,7 @@ struct EntityDebugSystem final : BaseSystem {
         ECS_PROFILER(ZoneScoped);
 
         auto [_, was_added] = m_create_callbacks.try_emplace(
-          ct::name<Component>, [&world = m_world](Entity e) { world.emplace<Component>(e); });
+          std::string(ct::NAME<Component>), [&world = m_world](Entity e) { world.emplace<Component>(e); });
         assert(was_added);
     }
 

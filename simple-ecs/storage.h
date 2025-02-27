@@ -51,7 +51,7 @@ struct Storage final : StorageBase {
                                         std::function<void(Entity, Component&)>>;
 
     Storage() {                                              //-V832
-        ECS_DEBUG_ONLY(m_string_name = ct::name<Component>); // NOLINT
+        ECS_DEBUG_ONLY(m_string_name = ct::NAME<Component>); // NOLINT
         ECS_DEBUG_ONLY(m_id = ct::ID<Component>);            // NOLINT
     }
 

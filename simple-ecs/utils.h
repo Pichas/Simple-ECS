@@ -55,7 +55,7 @@
 #define ECS_ASSERT(EXPR, MSG)                                                           \
     do {                                                                                \
         assert((EXPR) || ([]() {                                                        \
-                   spdlog::critical("TYPE: {}, MSG: {}\n\n", ct::name<Component>, MSG); \
+                   spdlog::critical("TYPE: {}, MSG: {}\n\n", ct::NAME<Component>, MSG); \
                    return false;                                                        \
                }()));                                                                   \
     } while (0)

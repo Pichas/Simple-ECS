@@ -106,7 +106,7 @@ struct World final : NoCopyNoMove {
         add_storage.template operator()<Component>();
         add_storage.template operator()<Updated<Component>>();
 
-        auto [_, was_added] = m_component_name.try_emplace(ct::name<Component>, ct::ID<Component>);
+        auto [_, was_added] = m_component_name.try_emplace(std::string(ct::NAME<Component>), ct::ID<Component>);
         assert(was_added);
     }
 

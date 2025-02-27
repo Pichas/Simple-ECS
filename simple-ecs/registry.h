@@ -150,7 +150,7 @@ struct Registry final : NoCopyNoMove {
           obj,
           every);
 
-        spdlog::debug("Job for {} was started", ct::name<System>);
+        spdlog::debug("Job for {} was started", ct::NAME<System>);
     }
 
     template<typename System, typename... Args>
@@ -159,12 +159,12 @@ struct Registry final : NoCopyNoMove {
         ECS_PROFILER(ZoneScoped);
 
         assert(!m_systems.contains(ct::ID<System>) && "system is already registered");
-        spdlog::debug("register: {}", ct::name_sv<System>);
+        spdlog::debug("register: {}", ct::NAME<System>);
 
         auto system     = std::make_unique<System>(std::forward<Args>(args)...);
         auto system_ptr = system.get();
         m_init_callbacks.emplace([system_ptr, this]() {
-            spdlog::debug("init: {}", ct::name_sv<System>);
+            spdlog::debug("init: {}", ct::NAME<System>);
             system_ptr->setup(*this);
         });
 
@@ -183,7 +183,7 @@ struct Registry final : NoCopyNoMove {
 
         // stop system
         m_cleanup_callbacks.emplace([system = std::move(system), this] {
-            spdlog::debug("remove: {}", ct::name_sv<System>);
+            spdlog::debug("remove: {}", ct::NAME<System>);
             system->second.get()->stop(*this);
             m_parallel_jobs.erase(ct::ID<System>);
             m_systems.erase(system);
