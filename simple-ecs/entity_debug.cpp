@@ -61,20 +61,30 @@ void EntityDebugSystem::showRegisteredComponents([[maybe_unused]] bool& show) {
     }
 
     if (ImGui::Begin("Component list", &show, ImGuiWindowFlags_NoCollapse)) {
-        constexpr ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
+        constexpr ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY;
 
         if (ImGui::BeginTable("components", 2, flags)) {
+            ImGui::TableSetupScrollFreeze(0, 1); // Make top row always visible
             ImGui::TableSetupColumn("Name");
             ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 0.0f);
             ImGui::TableHeadersRow();
 
-            for (const auto& [name, id] : m_world.registeredComponentNames()) {
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                ImGui::Text("%s", name.c_str());
+            ImGuiListClipper clipper;
+            const auto&      components = m_world.registeredComponentNames();
+            clipper.Begin(components.size());
 
-                ImGui::TableNextColumn();
-                ImGui::Text("%08X", id);
+            while (clipper.Step()) {
+                for (int row_n = clipper.DisplayStart; row_n < clipper.DisplayEnd; row_n++) {
+                    auto it = components.begin();
+                    std::advance(it, row_n);
+                    const auto& [name, id] = *it;
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", name.c_str());
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%08X", id);
+                }
             }
             ImGui::EndTable();
         }
@@ -93,8 +103,33 @@ void EntityDebugSystem::showRegisteredFunctions([[maybe_unused]] bool& show) {
     }
 
     if (ImGui::Begin("Function list", &show, ImGuiWindowFlags_NoCollapse)) {
-        for (const auto& [time, name] : m_world.getRegistry()->getRegisteredFunctionsInfo()) {
-            ImGui::Text("%.7f s - %s", time, name.data()); // NOLINT
+        constexpr ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY;
+
+        if (ImGui::BeginTable("functions", 2, flags)) {
+            ImGui::TableSetupScrollFreeze(0, 1); // Make top row always visible
+            ImGui::TableSetupColumn("Name");
+            ImGui::TableSetupColumn("ms", ImGuiTableColumnFlags_WidthFixed, 0.0f);
+            ImGui::TableHeadersRow();
+
+            ImGuiListClipper clipper;
+            const auto&      components = m_world.getRegistry()->getRegisteredFunctionsInfo();
+            clipper.Begin(components.size());
+
+            while (clipper.Step()) {
+                for (int row_n = clipper.DisplayStart; row_n < clipper.DisplayEnd; row_n++) {
+                    auto it = components.begin();
+                    std::advance(it, row_n);
+                    const auto& [time, name] = *it;
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", name.data()); // NOLINT
+
+                    ImGui::TableNextColumn();
+                    auto text = std::format("{:08.04f}", time * 1000);
+                    ImGui::Text("%s ", text.c_str()); // NOLINT
+                }
+            }
+            ImGui::EndTable();
         }
     }
     ImGui::End();
