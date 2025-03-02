@@ -61,7 +61,7 @@ if(NOT COMMAND AddExternalPackage)
             )
         else()
             if(PATCH_NAME)
-                set(PATCH_CMD git apply ${PATCH_NAME})
+                set(PATCH_CMD git apply ${PATCH_NAME} UPDATE_DISCONNECTED 1)
             endif()
             if(DOWNLOAD_ONLY STREQUAL "YES")
                 set(DOWNLOAD_ONLY EXCLUDE_FROM_ALL)
@@ -75,7 +75,6 @@ if(NOT COMMAND AddExternalPackage)
                 GIT_TAG          ${CURRENT_VERSION}
                 PATCH_COMMAND    ${PATCH_CMD}
                 ${DOWNLOAD_ONLY}
-                UPDATE_DISCONNECTED 1
             )
             FetchContent_MakeAvailable(${CURRENT_TARGET})
         endif()
