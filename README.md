@@ -1,6 +1,25 @@
 # Simple-ECS
 
-One more ECS. You can check [this](https://gitlab.com/p34ch-main/Game) repo for use case.
+One more ECS. You can check [this](https://gitlab.com/p34ch-main/Game/-/tree/main/src/engine/system?ref_type=heads) repo for use case.
+
+## How to add
+
+```cmake
+project(MyCoolProject)
+add_executable(${PROJ_NAME} main.cpp )
+
+# Import sources
+include(FetchContent)
+FetchContent_Declare(
+    simple_ecs_external
+    GIT_REPOSITORY https://gitlab.com/p34ch-main/simple-ecs.git
+    GIT_TAG main   # put the latest version (tag) or commit id
+)
+FetchContent_MakeAvailable(simple_ecs_external)
+
+# add to the project
+target_link_libraries(${PROJECT_NAME} PUBLIC SimpleECS)
+```
 
 ## How to use
 
@@ -301,6 +320,39 @@ ECS_JOB MySystem::worker() {
     }
     return ECS_JOB_CONTINUE;
 }
+```
+
+## Build options
+
+### Additional optimizations
+
+Set `FINAL` option to enable additional optimizations
+
+```cmake
+option(ECS_FINAL "Final build without any debug info" ON)
+```
+
+You can also add [LTO](https://en.wikipedia.org/wiki/Interprocedural_optimization) for the whole project. Add these line to your main cmake file before adding targets
+
+```cmake
+    set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+```
+
+### ImGui
+
+Will use `imgui` and `implot` projects to enable some debug information. User should provide these deps.
+
+```cmake
+option(ECS_ENABLE_IMGUI "Enable ImGui related code" ON)
+```
+
+### Profiler
+
+Will download and enable Tracy as public dep
+
+```cmake
+option(ECS_ENABLE_PROFILER "Enable tracy profiler" ON)
 ```
 
 ## SAST Tools

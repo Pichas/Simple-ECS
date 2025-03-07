@@ -1,3 +1,8 @@
+if(NOT ECS_ENABLE_PROFILER)
+	return()
+endif()
+
+
 option(TRACY_STATIC "Whether to build Tracy as a static library" ON)
 option(TRACY_ENABLE "Enable profiling" ON)
 option(TRACY_NO_EXIT "Client executable does not exit until all profile data is sent to server" OFF)

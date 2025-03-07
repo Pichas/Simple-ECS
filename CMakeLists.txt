@@ -6,27 +6,24 @@ option(ECS_FINAL "Final build without any debug info" OFF)
 option(ECS_ENABLE_IMGUI "Enable ImGui related code" OFF)
 option(ECS_ENABLE_PROFILER "Enable tracy profiler" OFF)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if (${PROJECT_IS_TOP_LEVEL})
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+endif()
 
 set(H_FILES
     simple-ecs/base_system.h
     simple-ecs/components.h
     simple-ecs/entity.h
     simple-ecs/entity_iterator.h
-    simple-ecs/entity_debug.cpp
     simple-ecs/entity_debug.h
     simple-ecs/filter.h
     simple-ecs/observer.h
     simple-ecs/registrant.h
     simple-ecs/registry.h
-    simple-ecs/serializer.cpp
     simple-ecs/serializer.h
     simple-ecs/tools/sparse_set.h
     simple-ecs/storage.h
     simple-ecs/utils.h
-    simple-ecs/world.cpp
     simple-ecs/world.h
 )
 
@@ -55,9 +52,16 @@ if(ECS_ENABLE_PROFILER)
     target_link_libraries(${PROJECT_NAME} PUBLIC TracyClient)
 endif()
 
-
 if(ECS_FINAL)
     target_compile_definitions(${PROJECT_NAME} PUBLIC ECS_FINAL)
+    set_target_properties(${PROJECT_NAME} PROPERTIES UNITY_BUILD ON)
+
+    if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
+        target_compile_options(${PROJECT_NAME} PRIVATE -fno-rtti -fno-exceptions)
+    elseif (${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
+        target_compile_options(${PROJECT_NAME} PRIVATE /GR- /EHs-c-)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE _HAS_EXCEPTIONS=0)
+    endif()
 endif()
 
 set_target_properties(${PROJECT_NAME}
