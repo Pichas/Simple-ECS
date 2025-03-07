@@ -284,7 +284,7 @@ If you want to use ECS in separate thread you can use `Registry` functions for i
 * `syncWithRender()` - ECS function. Wait untill the Render calls `frameSynchronized()` function
 * `frameSynchronized()` - Render function. Call to notify ECS that frame is sinchronized and it can process the next one.
 * `waitFrame()` - Render function. Wait while ECS calculates the next frame.
-* `exec()` - ECS function. At the end of the frame calculation sets the flag for the `waitFrame()` function
+* `exec()` - ECS function. At the end of the frame calculation sets the flag for the `waitFrame()` function. Will wait untill `prepare()` is finished.
 
 > NOTE: You can call `reg->prepare()` function in the sync data step from the Render thread.
 
@@ -293,7 +293,8 @@ Example
 | Render thread: | ECS thread |
 | ---  | --- |
 | reg.waitFrame(); | reg.syncWithRender(); |
-| sync data and filter Entities | -wait- |
+| reg.prepare(); | -wait- |
+| sync data and filter Entities | -prepare data- |
 | reg.frameSynchronized(); | -wait- |
 | render data | reg.exec(); |
 
